@@ -410,11 +410,10 @@ def main() -> None:
     if start_index > 0:
         print(f"  ▶ Checkpoint bulundu: {start_index}. ilandan devam ediliyor.\n")
 
-    # Başarısız kayıt dosyası
-    failed_file = open(FAILED_LOG, "a", newline="", encoding="utf-8")
+    # Başarısız kayıt dosyası (her çalıştırmada sıfırdan yaz)
+    failed_file = open(FAILED_LOG, "w", newline="", encoding="utf-8")
     failed_writer = csv.writer(failed_file)
-    if os.stat(FAILED_LOG).st_size == 0:
-        failed_writer.writerow(["index", "url", "reason"])
+    failed_writer.writerow(["index", "url", "reason"])
 
     # HTTP Session (bağlantı havuzu)
     session = requests.Session()
@@ -435,9 +434,10 @@ def main() -> None:
 
     success_count = 0
     fail_count = 0
-    times: list = []
+    request_durations: list = []
     start_time = time.time()
 
+    i = start_index
     try:
         for i, row in enumerate(rows):
             # Zaten işlenmiş satırları direkt yaz
@@ -454,8 +454,8 @@ def main() -> None:
                 continue
 
             # İlerleme çubuğu
-            if times:
-                avg_time = sum(times[-20:]) / len(times[-20:])
+            if request_durations:
+                avg_time = sum(request_durations[-20:]) / len(request_durations[-20:])
                 remaining = (total - i) * avg_time
                 eta = format_eta(remaining)
             else:
@@ -471,7 +471,7 @@ def main() -> None:
             t0 = time.time()
             scraped = scrape_listing(session, url)
             elapsed = time.time() - t0
-            times.append(elapsed)
+            request_durations.append(elapsed)
 
             if scraped:
                 # Sadece boş alanları doldur (var olanları üzerine yazma)
