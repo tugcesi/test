@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+scraper_checkpoint.json
+scraper_failed.csv
+istanbul_kiralik_complete_scraped.csv
