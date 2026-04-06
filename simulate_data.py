@@ -11,12 +11,40 @@ import re
 INPUT_FILE = "istanbul_kiralik_complete.csv"
 OUTPUT_FILE = "istanbul_kiralik_simulated.csv"
 
-# District tiers
+# Neighbourhood-level overrides (checked BEFORE district-level rules)
+# Sarıyer neighbourhoods
+_SARIYE_MID_MAHALLELER = {
+    "tarabya", "ferahevler", "kireçburnu", "cumhuriyet",
+    "çamlıtepe", "bahçeköy", "zekeriyaköy", "büyükdere",
+    "rumeli kavağı", "reşitpaşa", "çayırbaşı", "uskumruköy",
+}
+_SARIYE_LUXURY_MAHALLELER = {
+    "maslak", "istinye", "ayazağa", "huzur", "poligon",
+}
+
+# Beşiktaş neighbourhoods
+_BESIKTAS_LUXURY_MAHALLELER = {
+    "etiler", "levent", "nisbetiye", "akat", "bebek",
+    "arnavutköy", "ulus", "gayrettepe", "levazım",
+}
+_BESIKTAS_MID_MAHALLELER = {
+    "dikilitaş", "türkali", "sinanpaşa", "muradiye", "abbasağa",
+    "mecidiye", "ortaköy", "cihannüma",
+}
+
+# Üsküdar neighbourhoods
+_USKUDAR_LUXURY_MAHALLELER = {
+    "çengelköy", "kuzguncuk", "burhaniye", "beylerbeyi",
+}
+_USKUDAR_MID_MAHALLELER = {
+    "sultantepe", "bulgurlu", "bahçelievler", "ferah", "ünalan",
+}
+
+# District tiers (fallback when no neighbourhood rule matches)
 LUXURY_DISTRICTS = {
     "beşiktaş", "sarıyer", "şişli", "nişantaşı", "teşvikiye",
     "kadıköy", "moda", "caddebostan", "bakırköy", "florya",
-    "beyoğlu", "cihangir", "maslak", "istinye", "etiler", "levent",
-    "balmumcu", "bebek", "arnavutköy",  # Arnavutköy here = Beşiktaş ilçesi neighbourhood
+    "beyoğlu", "cihangir", "balmumcu",
 }
 
 MID_DISTRICTS = {
@@ -24,7 +52,7 @@ MID_DISTRICTS = {
     "ümraniye", "başakşehir", "bahçelievler", "küçükçekmece",
     "pendik", "sancaktepe", "çekmeköy", "tuzla", "avcılar",
     "eyüpsultan", "beylikdüzü", "bağcılar", "gaziosmanpaşa",
-    "fatih", "zeytinburnu", "güngören", "ataşehir",
+    "fatih", "zeytinburnu", "güngören",
 }
 
 SUBURB_DISTRICTS = {
@@ -35,16 +63,53 @@ SUBURB_DISTRICTS = {
 
 
 def get_district_tier(konum: str) -> str:
-    """Return 'luxury', 'mid', or 'suburb' based on district name in konum."""
-    konum_lower = konum.lower()
+    """Return 'luxury', 'mid', or 'suburb' based on konum.
+
+    Neighbourhood-level rules are checked first so that e.g.
+    'Sarıyer / Tarabya Mah.' → 'mid' and 'Sarıyer / Maslak Mah.' → 'luxury'.
+    """
+    k = konum.lower()
+
+    # --- Neighbourhood-level overrides ---
+    # Sarıyer
+    if "sarıyer" in k:
+        for mah in _SARIYE_LUXURY_MAHALLELER:
+            if mah in k:
+                return "luxury"
+        for mah in _SARIYE_MID_MAHALLELER:
+            if mah in k:
+                return "mid"
+        return "luxury"  # Default for Sarıyer (high-end district)
+
+    # Beşiktaş
+    if "beşiktaş" in k:
+        for mah in _BESIKTAS_LUXURY_MAHALLELER:
+            if mah in k:
+                return "luxury"
+        for mah in _BESIKTAS_MID_MAHALLELER:
+            if mah in k:
+                return "mid"
+        return "luxury"  # Default for Beşiktaş
+
+    # Üsküdar
+    if "üsküdar" in k:
+        for mah in _USKUDAR_LUXURY_MAHALLELER:
+            if mah in k:
+                return "luxury"
+        for mah in _USKUDAR_MID_MAHALLELER:
+            if mah in k:
+                return "mid"
+        return "mid"  # Default for Üsküdar
+
+    # --- District-level fallback ---
     for d in LUXURY_DISTRICTS:
-        if d in konum_lower:
+        if d in k:
             return "luxury"
     for d in SUBURB_DISTRICTS:
-        if d in konum_lower:
+        if d in k:
             return "suburb"
     for d in MID_DISTRICTS:
-        if d in konum_lower:
+        if d in k:
             return "mid"
     return "mid"  # default
 
@@ -58,10 +123,14 @@ def extract_room_count(baslik: str) -> str:
 
 
 def is_villa_like(baslik: str, oda: str) -> bool:
-    """Check if the listing is villa/müstakil/yalı type."""
+    """Check if the listing is villa/müstakil/yalı type.
+
+    'dubleks' and 'dublex' are intentionally excluded — most duplex apartments
+    are priced like regular apartments, not villas.
+    """
     b = baslik.lower()
-    # Use word-boundary-aware checks to avoid false matches (e.g. 'yalı' inside 'eşyalı')
-    for keyword in ["villa", "müstakil", "tripleks", "dublex", "dubleks"]:
+    # Word-boundary-aware checks
+    for keyword in ["villa", "müstakil", "tripleks", "köşk", "fourlex"]:
         if re.search(r"\b" + re.escape(keyword) + r"\b", b):
             return True
     # 'yalı' needs special handling: must be standalone word, not inside 'eşyalı'
@@ -70,35 +139,45 @@ def is_villa_like(baslik: str, oda: str) -> bool:
     return False
 
 
+def _gauss_int(mean: float, lo: int, hi: int) -> int:
+    """Return a Gaussian-sampled integer clamped to [lo, hi].
+
+    Uses the 3-sigma rule: std = (hi - lo) / 6, so ~99.7 % of samples
+    fall within [lo, hi] before clamping.
+    """
+    std = (hi - lo) / 6.0
+    val = int(random.gauss(mean, std))
+    return max(lo, min(hi, val))
+
+
 def simulate_metrekare(baslik: str, oda: str) -> str:
     """Simulate m2 based on room count and title hints."""
-    # Check title for explicit m² value (2-4 digits before m² or M2)
-    # Skip if this appears to be a balcony/garden/arsa area (followed by balkon/bahçe/arsa)
+    # Check title for explicit m² value (2-4 digits before m² or M2).
+    # Skip if this appears to be a balcony/garden/terrace/veranda area.
     for m in re.finditer(r"(\d{2,4})\s*m[²2]", baslik, re.IGNORECASE):
         val = int(m.group(1))
-        # Check what follows to exclude balcony/garden sizes
         after = baslik[m.end():].lower().strip()
-        if re.match(r"[\s,]*balkon", after):
+        if re.match(r"[\s,]*(balkon|bahçe|teras|veranda)", after):
             continue
         # Reasonable apartment/house range: 20–2000 m²
         if 20 <= val <= 2000:
             return str(val)
 
-
     if is_villa_like(baslik, oda):
-        return str(random.randint(250, 500))
+        mean, lo, hi = 350, 250, 500
+        return str(_gauss_int(mean, lo, hi))
 
     ranges = {
-        "1+0": (25, 45),
-        "1+1": (45, 75),
-        "2+1": (70, 110),
-        "3+1": (100, 145),
-        "4+1": (140, 200),
-        "4+2": (180, 280),
-        "5+1": (180, 280),
-        "5+2": (180, 280),
+        "1+0": (35, 25, 45),
+        "1+1": (58, 45, 75),
+        "2+1": (88, 70, 110),
+        "3+1": (120, 100, 145),
+        "4+1": (165, 140, 200),
+        "4+2": (220, 180, 280),
+        "5+1": (220, 180, 280),
+        "5+2": (220, 180, 280),
     }
-    lo, hi = ranges.get(oda, (180, 280))
+    mean, lo, hi = ranges.get(oda, (220, 180, 280))
     # For large room counts not in map
     first = oda.split("+")[0] if "+" in oda else "2"
     try:
@@ -106,8 +185,8 @@ def simulate_metrekare(baslik: str, oda: str) -> str:
     except ValueError:
         n = 2
     if n >= 6:
-        lo, hi = 250, 500
-    return str(random.randint(lo, hi))
+        mean, lo, hi = 350, 250, 500
+    return str(_gauss_int(mean, lo, hi))
 
 
 def simulate_kat(baslik: str) -> str:
@@ -124,64 +203,85 @@ def simulate_kat(baslik: str) -> str:
 
 def simulate_fiyat(baslik: str, oda: str, tier: str) -> str:
     """Simulate monthly rent price."""
-    # Check title for explicit price
-    price_match = re.search(r"(\d[\d\.\s]*)\s*[Tt][Ll]", baslik)
+    # Check title for explicit price — only accept well-formed patterns
+    # e.g. "35.000 TL", "50 000 Tl", "35000TL", "150000 tl"
+    price_match = re.search(
+        r"\b(\d{2,3}[\.\s]?\d{3})\s*[Tt][Ll]\b"
+        r"|\b(\d{5,6})\s*[Tt][Ll]\b",
+        baslik,
+    )
     if price_match:
-        raw = price_match.group(1).replace(".", "").replace(" ", "")
+        raw = (price_match.group(1) or price_match.group(2))
+        raw = raw.replace(".", "").replace(" ", "")
         try:
             return str(int(raw))
         except ValueError:
             pass
 
     villa = is_villa_like(baslik, oda)
-    first = oda.split("+")[0] if "+" in oda else "2"
-    try:
-        n = int(first)
-    except ValueError:
-        n = 2
 
-    if tier == "luxury":
-        if villa:
-            lo, hi = 200000, 800000
-        elif oda == "1+0":
-            lo, hi = 18000, 28000
-        elif oda == "1+1":
-            lo, hi = 25000, 55000
-        elif oda == "2+1":
-            lo, hi = 45000, 90000
-        elif oda == "3+1":
-            lo, hi = 75000, 160000
-        else:
-            lo, hi = 120000, 300000
-    elif tier == "suburb":
-        if villa:
-            lo, hi = 80000, 200000
-        elif oda == "1+0":
-            lo, hi = 7000, 13000
-        elif oda == "1+1":
-            lo, hi = 10000, 22000
-        elif oda == "2+1":
-            lo, hi = 18000, 38000
-        elif oda == "3+1":
-            lo, hi = 30000, 60000
-        else:
-            lo, hi = 50000, 100000
-    else:  # mid
-        if villa:
-            lo, hi = 120000, 300000
-        elif oda == "1+0":
-            lo, hi = 10000, 18000
-        elif oda == "1+1":
-            lo, hi = 15000, 32000
-        elif oda == "2+1":
-            lo, hi = 28000, 55000
-        elif oda == "3+1":
-            lo, hi = 45000, 85000
-        else:
-            lo, hi = 75000, 140000
+    # Price table: (mean, lo, hi) per tier and room type
+    # 2025 Q1 Istanbul rental market
+    PRICES = {
+        "luxury": {
+            "villa":  (400000, 200000, 800000),
+            "1+0":    (35000,  22000,  55000),
+            "1+1":    (55000,  35000,  90000),
+            "2+1":    (85000,  55000, 140000),
+            "3+1":    (130000, 85000, 200000),
+            "4+1":    (200000, 130000, 350000),
+            "4+2":    (280000, 180000, 500000),
+            "other":  (280000, 180000, 500000),
+        },
+        "mid": {
+            "villa":  (200000, 130000, 350000),
+            "1+0":    (20000,  14000,  30000),
+            "1+1":    (32000,  20000,  50000),
+            "2+1":    (50000,  32000,  75000),
+            "3+1":    (75000,  50000, 110000),
+            "4+1":    (110000, 75000, 160000),
+            "4+2":    (150000, 100000, 220000),
+            "other":  (150000, 100000, 220000),
+        },
+        "suburb": {
+            "villa":  (130000, 90000, 200000),
+            "1+0":    (14000,  10000,  20000),
+            "1+1":    (22000,  15000,  32000),
+            "2+1":    (35000,  24000,  50000),
+            "3+1":    (52000,  36000,  72000),
+            "4+1":    (75000,  52000, 105000),
+            "4+2":    (100000, 70000, 140000),
+            "other":  (100000, 70000, 140000),
+        },
+    }
 
+    tier_prices = PRICES.get(tier, PRICES["mid"])
+
+    if villa:
+        mean, lo, hi = tier_prices["villa"]
+    else:
+        # Normalise oda: treat 5+1, 5+2, 6+… etc. as "other" (≥ 4+2 bucket)
+        first = oda.split("+")[0] if "+" in oda else "2"
+        try:
+            n = int(first)
+        except ValueError:
+            n = 2
+        second = oda.split("+")[1] if "+" in oda else "1"
+        try:
+            s = int(second)
+        except ValueError:
+            s = 1
+
+        if n >= 5 or (n == 4 and s >= 2):
+            key = "4+2"
+        elif oda in tier_prices:
+            key = oda
+        else:
+            key = "other"
+        mean, lo, hi = tier_prices.get(key, tier_prices["other"])
+
+    val = _gauss_int(mean, lo, hi)
     # Round to nearest 500
-    val = random.randint(lo, hi)
     val = round(val / 500) * 500
     return str(val)
 
