@@ -68,7 +68,7 @@ MAHALLELER: dict[str, dict] = {
         # Sarıyer ilçe ort: 590 TL/m²
         "Sarıyer": {
             "Yeniköy":            {"katsayi": 1.54},
-            "Tarabya":            {"katsayi": 1.46},
+            "Tarabya":            {"katsayi": 1.10},
             "İstinye":            {"katsayi": 1.31},
             "Zekeriyaköy":        {"katsayi": 1.10},
             "Maslak":             {"katsayi": 1.00},
@@ -632,7 +632,7 @@ def simulate_kat(baslik: str) -> str:
     return str(random.randint(1, 12))
 
 
-def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
+def simulate_fiyat(baslik: str, oda: str, konum: str, metrekare: str = "") -> str:
     # 1. Başlıkta açık fiyat var mı?
     price_match = re.search(r"(\d[\d\.\s]{2,})\s*[Tt][Ll]", baslik)
     if price_match:
@@ -644,7 +644,7 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         except ValueError:
             pass
 
-    # 2. Mahalle lookup
+    # 2. Lokasyon bazlı birim fiyat (EN BASKIN FAKTÖR)
     mahalle_data, segment, ilce_adi = lookup_mahalle(konum)
     tier = get_tier(konum)
 
@@ -655,24 +655,41 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         fb = TIER_FALLBACK.get(tier, TIER_FALLBACK["orta"])
         m2_birim, std = hesapla_m2_fiyat("", fb["katsayi"])
 
-    # Villa çarpanı
+    # 3. Kullanılacak m² belirleme (öncelik: gerçek m² > referans m²)
+    kullanilan_m2 = None
+
+    # 3a. Parametre olarak gelen gerçek m² (CSV'den)
+    if metrekare:
+        try:
+            val = int(float(metrekare))
+            if 20 <= val <= 2000:
+                kullanilan_m2 = val
+        except (ValueError, TypeError):
+            pass
+
+    # 3b. Gerçek m² yoksa, oda tipine göre REFERANS m² kullan (simüle etme, sabit referans)
+    if kullanilan_m2 is None:
+        REF_M2 = {
+            "1+0": 35, "1+1": 60, "2+1": 90, "2+2": 100,
+            "3+1": 130, "4+1": 180, "4+2": 210,
+            "5+1": 250, "5+2": 280, "6+1": 350,
+        }
+        kullanilan_m2 = REF_M2.get(oda, 90)
+
+    # 4. Villa çarpanı
+    villa_carpan = 1.0
     if is_villa_like(baslik):
-        m2_birim *= 1.4
-        std *= 1.2
+        villa_carpan = 1.4
 
-    # m² — triangular dağılım (daha gerçekçi)
-    lo_m2, hi_m2 = ODA_M2.get(oda, (120, 200))
-    m2 = int(random.triangular(lo_m2, hi_m2, (lo_m2 + hi_m2) / 2))
-
-    # Noise birim fiyata uygulanıyor (toplam fiyata DEĞİL)
+    # 5. Noise (birim fiyata, %8 std)
     m2_birim_noisy = random.gauss(m2_birim, std)
 
-    fiyat = int(m2 * m2_birim_noisy)
-    fiyat = max(5000, fiyat)
-    fiyat = round(fiyat / 500) * 500
+    # 6. Fiyat hesapla (lokasyon baskın)
+    fiyat = int(kullanilan_m2 * m2_birim_noisy * villa_carpan)
 
-    # Debug (geçici)
-    # print(f"{konum} | {ilce_adi} | katsayi={katsayi:.2f} | m2_birim={m2_birim:.0f} | m2={m2} | fiyat={fiyat}")
+    # 7. Minimum fiyat: İstanbul'da 20.000 TL altı kira yok
+    fiyat = max(20000, fiyat)
+    fiyat = round(fiyat / 500) * 500
 
     return str(fiyat)
 
@@ -747,7 +764,7 @@ def process_row(row: dict, index: int) -> dict:
     else:
         oda = str(oda).strip()
 
-    # Metrekare
+    # Metrekare — önce simüle et (gerekiyorsa)
     if is_empty(row.get("Metrekare")):
         row["Metrekare"] = simulate_metrekare(baslik, oda)
 
@@ -756,7 +773,8 @@ def process_row(row: dict, index: int) -> dict:
         row["Kat"] = simulate_kat(baslik)
 
     # Fiyat — her satır için yeniden simüle et (kaynak verideki fiyatlar güvenilmez)
-    row["Fiyat"] = simulate_fiyat(baslik, oda, konum)
+    # Gerçek metrekare varsa onu kullan (simüle edilmişse de olur)
+    row["Fiyat"] = simulate_fiyat(baslik, oda, konum, row.get("Metrekare", ""))
 
     # Yapı Yaşı
     if is_empty(row.get("Yapı Yaşı")):
