@@ -23,7 +23,7 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "bebek":            {"m2": 3200, "std": 600},
     "etiler":           {"m2": 2800, "std": 500},
     "levent":           {"m2": 2400, "std": 450},
-    "arnavutköy mah":   {"m2": 2600, "std": 500},   # Beşiktaş mahallesi
+    "arnavutköy mah":   {"m2": 2600, "std": 500},
     "ortaköy":          {"m2": 2200, "std": 420},
     "balmumcu":         {"m2": 1900, "std": 380},
     "dikilitaş":        {"m2": 2000, "std": 400},
@@ -151,18 +151,16 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "veliefendi":       {"m2": 780,  "std": 170},
     "merkezefendi":     {"m2": 750,  "std": 165},
     "kazlıçeşme":       {"m2": 850,  "std": 185},
+    "zeytinburnu":      {"m2": 800,  "std": 175},
     # ── Bahçelievler ──────────────────────────────────────────────────────
     "yenibosna":        {"m2": 750,  "std": 165},
     "bahçelievler mah": {"m2": 780,  "std": 170},
     "siyavuşpaşa":      {"m2": 720,  "std": 160},
     "soğanlı":          {"m2": 700,  "std": 158},
-    "hürriyet mah bahç":{"m2": 700,  "std": 158},
     # ── Bağcılar ──────────────────────────────────────────────────────────
     "bağcılar":         {"m2": 640,  "std": 148},
-    "yenimahalle bağ":  {"m2": 600,  "std": 138},
     "15 temmuz":        {"m2": 650,  "std": 150},
     # ── Avcılar ───────────────────────────────────────────────────────────
-    "cihangir mah avcı":{"m2": 700,  "std": 158},
     "denizköşkler":     {"m2": 680,  "std": 154},
     "tahtakale":        {"m2": 700,  "std": 158},
     # ── Beylikdüzü ────────────────────────────────────────────────────────
@@ -172,7 +170,6 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "kavaklı":          {"m2": 700,  "std": 158},
     "yakuplu":          {"m2": 720,  "std": 162},
     "marmara mah":      {"m2": 750,  "std": 168},
-    "cumhuriyet mah bey":{"m2": 700, "std": 158},
     "dereağzı":         {"m2": 680,  "std": 154},
     # ── Esenyurt ──────────────────────────────────────────────────────────
     "yeşilkent":        {"m2": 500,  "std": 115},
@@ -186,11 +183,6 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "üçevler":          {"m2": 480,  "std": 110},
     "pınar mah":        {"m2": 460,  "std": 105},
     "güzelyurt":        {"m2": 480,  "std": 110},
-    "hürriyet mah esen":{"m2": 460,  "std": 105},
-    "mevlana mah esen": {"m2": 480,  "std": 110},
-    "cumhuriyet mah esen":{"m2": 480,"std": 110},
-    "mehmet akif ersoy esen":{"m2": 460,"std": 105},
-    "istiklal mah esen":{"m2": 460,  "std": 105},
     # ── Arnavutköy (ilçe) ─────────────────────────────────────────────────
     "hadımköy":         {"m2": 600,  "std": 138},
     "mavigöl":          {"m2": 650,  "std": 148},
@@ -202,13 +194,10 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "türkoba":          {"m2": 600,  "std": 138},
     "sinanoba":         {"m2": 620,  "std": 142},
     # ── Gaziosmanpaşa ─────────────────────────────────────────────────────
-    "merkez mah gaz":   {"m2": 700,  "std": 158},
-    "mevlana mah gaz":  {"m2": 650,  "std": 150},
     "karlıtepe":        {"m2": 620,  "std": 142},
     # ── Bayrampaşa ────────────────────────────────────────────────────────
     "kocatepe":         {"m2": 700,  "std": 158},
     # ── Esenler ───────────────────────────────────────────────────────────
-    "fatih mah esen":   {"m2": 580,  "std": 132},
     "menderes":         {"m2": 580,  "std": 132},
     "fevzi çakmak":     {"m2": 580,  "std": 132},
     # ─── ANADOLU YAKASI ────────────────────────────────────────────────────
@@ -219,14 +208,9 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "sultantepe":       {"m2": 1300, "std": 260},
     "bulgurlu":         {"m2": 1200, "std": 248},
     "bağlarbaşı":       {"m2": 1200, "std": 245},
-    "cumhuriyet mah üsk":{"m2": 1200,"std": 248},
     "ferah":            {"m2": 1100, "std": 228},
-    "bahçelievler üsk": {"m2": 1100, "std": 228},
     "valide-i atik":    {"m2": 1200, "std": 248},
     "ünalan":           {"m2": 1100, "std": 228},
-    "kuzguncuk":        {"m2": 2000, "std": 400},
-    "mehmet akif ersoy üsk":{"m2": 1150,"std": 238},
-    "barbaros mah üsk": {"m2": 1200, "std": 248},
     # ── Beykoz ────────────────────────────────────────────────────────────
     "kavacık":          {"m2": 1400, "std": 280},
     "anadoluhisarı":    {"m2": 1800, "std": 360},
@@ -251,13 +235,9 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "içerenköy":        {"m2": 1400, "std": 280},
     "küçükbakkalköy":   {"m2": 1200, "std": 245},
     "kayışdağı":        {"m2": 1100, "std": 225},
-    "barbaros mah ata": {"m2": 1250, "std": 255},
     "esatpaşa":         {"m2": 1200, "std": 248},
     "ferhatpaşa":       {"m2": 1100, "std": 228},
     "örnek mah":        {"m2": 1200, "std": 248},
-    "atatürk mah ata":  {"m2": 1200, "std": 248},
-    "yenişehir ata":    {"m2": 1100, "std": 228},
-    "inönü mah ata":    {"m2": 1200, "std": 248},
     # ── Maltepe ───────────────────────────────────────────────────────────
     "cevizli":          {"m2": 1050, "std": 215},
     "altıntepe":        {"m2": 950,  "std": 200},
@@ -270,20 +250,14 @@ MAHALLE_FIYAT: dict[str, dict] = {
     # ── Kartal ────────────────────────────────────────────────────────────
     "kordonboyu":       {"m2": 950,  "std": 200},
     "atalar":           {"m2": 850,  "std": 185},
-    "hürriyet mah kart":{"m2": 820,  "std": 178},
     "karlıktepe":       {"m2": 800,  "std": 175},
     # ── Ümraniye ──────────────────────────────────────────────────────────
-    "site mah ümr":     {"m2": 1000, "std": 210},
     "armağanevler":     {"m2": 950,  "std": 200},
     "altınşehir":       {"m2": 880,  "std": 188},
-    "atatürk mah ümr":  {"m2": 950,  "std": 200},
     "inkılap":          {"m2": 950,  "std": 200},
     "finanskent":       {"m2": 1100, "std": 228},
     "cemil meriç":      {"m2": 880,  "std": 188},
-    "istiklal mah ümr": {"m2": 880,  "std": 188},
-    "mehmet akif ümr":  {"m2": 880,  "std": 188},
     # ── Pendik ────────────────────────────────────────────────────────────
-    "yenişehir pend":   {"m2": 780,  "std": 172},
     "harmandere":       {"m2": 720,  "std": 162},
     "kurtköy":          {"m2": 680,  "std": 154},
     "şeyhli":           {"m2": 700,  "std": 158},
@@ -295,25 +269,16 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "aydınlı":          {"m2": 700,  "std": 158},
     "tepeören":         {"m2": 780,  "std": 172},
     "istasyon mah":     {"m2": 700,  "std": 158},
-    "orta mah tuzla":   {"m2": 660,  "std": 150},
     "postane":          {"m2": 680,  "std": 154},
     # ── Sultanbeyli ───────────────────────────────────────────────────────
-    "fatih mah sul":    {"m2": 480,  "std": 110},
-    "hasanpaşa sul":    {"m2": 460,  "std": 105},
-    "mimar sinan sul":  {"m2": 450,  "std": 100},
     "akşemsettin":      {"m2": 460,  "std": 105},
     # ── Sancaktepe ────────────────────────────────────────────────────────
     "inönü mah san":    {"m2": 520,  "std": 120},
     # ── Çekmeköy ──────────────────────────────────────────────────────────
     "taşdelen":         {"m2": 720,  "std": 162},
     "çatalmeşe":        {"m2": 700,  "std": 158},
-    "güngören mah çek": {"m2": 700,  "std": 158},
-    "mimar sinan çek":  {"m2": 720,  "std": 162},
     "soğukpınar":       {"m2": 700,  "std": 158},
-    "mehmet akif çek":  {"m2": 700,  "std": 158},
     "aydınlar":         {"m2": 700,  "std": 158},
-    # ── Adalar ────────────────────────────────────────────────────────────
-    "maden mah":        {"m2": 1500, "std": 300},
     # ── Başakşehir ────────────────────────────────────────────────────────
     "bahçeşehir":       {"m2": 900,  "std": 190},
     "başak mah":        {"m2": 800,  "std": 175},
@@ -322,22 +287,17 @@ MAHALLE_FIYAT: dict[str, dict] = {
     "tevfik bey":       {"m2": 750,  "std": 168},
     "cennet mah":       {"m2": 750,  "std": 168},
     "sultan murat":     {"m2": 720,  "std": 162},
-    "gültepe küç":      {"m2": 700,  "std": 158},
     "kanarya":          {"m2": 700,  "std": 158},
     "yeşilova":         {"m2": 680,  "std": 154},
-    "istasyon küç":     {"m2": 700,  "std": 158},
     # ── Silivri ───────────────────────────────────────────────────────────
     "piri mehmet":      {"m2": 500,  "std": 115},
-    "mimar sinan sil":  {"m2": 500,  "std": 115},
     "selimpaşa":        {"m2": 520,  "std": 120},
     # ── Şile ──────────────────────────────────────────────────────────────
     "balibey":          {"m2": 500,  "std": 115},
     "imrendere":        {"m2": 500,  "std": 115},
     "hacı kasım":       {"m2": 500,  "std": 115},
-    # ── Güngören ──────────────────────────────────────────────────────────
-    "merkez mah güng":  {"m2": 700,  "std": 158},
-    # ── Zeytinburnu ───────────────────────────────────────────────────────
-    "zeytinburnu":      {"m2": 800,  "std": 175},
+    # ── Adalar ────────────────────────────────────────────────────────────
+    "maden mah":        {"m2": 1500, "std": 300},
 }
 
 # Tier fallback fiyatları (mahalle bulunamazsa)
@@ -374,6 +334,14 @@ ODA_M2 = {
 # Yardımcı fonksiyonlar
 # ─────────────────────────────────────────────────────────────────────────────
 
+def is_empty(val) -> bool:
+    """Return True if val is None, empty string, or the literal string 'nan'/'NaN'.
+    Handles the case where pandas writes empty cells as 'NaN' in CSV output."""
+    if val is None:
+        return True
+    s = str(val).strip()
+    return s == "" or s.lower() == "nan"
+
 def get_tier(konum: str) -> str:
     kl = konum.lower()
     for d in LUXURY_DISTRICTS:
@@ -387,7 +355,6 @@ def get_tier(konum: str) -> str:
 def lookup_mahalle(konum: str) -> dict | None:
     """Try to find a mahalle-level price entry from the Konum string."""
     kl = konum.lower()
-    # Try longest match first (avoids 'merkez mah' matching wrong district)
     best_key = None
     best_len = 0
     for key in MAHALLE_FIYAT:
@@ -397,7 +364,6 @@ def lookup_mahalle(konum: str) -> dict | None:
     if best_key:
         return MAHALLE_FIYAT[best_key]
     return None
-
 
 def extract_room_count(baslik: str) -> str:
     match = re.search(r"\b(\d+\+\d+)\b", baslik)
@@ -426,7 +392,7 @@ def simulate_metrekare(baslik: str, oda: str) -> str:
     if is_villa_like(baslik):
         return str(random.randint(200, 500))
 
-    # 3. Oda sayısına göre aralık
+    # 3. Oda sayısına göre aralık (triangular dağılım)
     lo, hi = ODA_M2.get(oda, (120, 200))
     first = oda.split("+")[0] if "+" in oda else "2"
     try:
@@ -435,16 +401,16 @@ def simulate_metrekare(baslik: str, oda: str) -> str:
         n = 2
     if n >= 6:
         lo, hi = 250, 500
-    # Hafif normale çek (uniform yerine biraz çarpık dağılım)
     return str(int(random.triangular(lo, hi, lo + (hi - lo) * 0.45)))
 
 def simulate_kat(baslik: str) -> str:
     b = baslik.lower()
-    # Açık kat numarası ("5.kat", "3. kat", "5/2. katta")
+    # "5/2. katta" → 2. kat
     m = re.search(r"(\d+)[./](\d+)[\s.]*kat", b)
     if m:
         return m.group(2)
-    m = re.search(r"(\d+)\s*\.?(\d*)\s*kat\b", b)
+    # "3. kat", "5.kat"
+    m = re.search(r"(\d+)\s*\.?(\d*)kat\b", b)
     if m:
         return m.group(1)
     if "zemin" in b:
@@ -462,7 +428,7 @@ def simulate_kat(baslik: str) -> str:
     return str(random.randint(1, 12))
 
 def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
-    # 1. Başlıkta açık fiyat var mı? ("35.000 TL", "150000tl", "35 000 Tl")
+    # 1. Başlıkta açık fiyat var mı?
     price_match = re.search(r"(\d[\d\.\s]{2,})\s*[Tt][Ll]", baslik)
     if price_match:
         raw = price_match.group(1).replace(".", "").replace(" ", "")
@@ -473,7 +439,7 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         except ValueError:
             pass
 
-    # 2. m² bazlı fiyatlandırma
+    # 2. Mahalle düzeyinde m² bazlı fiyatlandırma
     mahalle_data = lookup_mahalle(konum)
     tier = get_tier(konum)
     if mahalle_data:
@@ -484,21 +450,17 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         m2_birim = fb["m2"]
         std = fb["std"]
 
-    # Villa/müstakil için m² birimini artır
     villa = is_villa_like(baslik)
     if villa:
         m2_birim = int(m2_birim * 1.4)
         std = int(std * 1.4)
 
-    # m² miktarı
     lo_m2, hi_m2 = ODA_M2.get(oda, (120, 200))
     m2 = random.randint(lo_m2, hi_m2)
 
-    # Fiyat = m² × birim fiyat + gürültü
     noise = random.gauss(0, std)
     fiyat = int(m2 * m2_birim + noise * (m2 ** 0.5))
     fiyat = max(5000, fiyat)
-    # 500 TL'ye yuvarla
     fiyat = round(fiyat / 500) * 500
     return str(fiyat)
 
@@ -509,19 +471,18 @@ def simulate_yapi_yasi(baslik: str) -> str:
     m = re.search(r"(\d+)\s*yıllık", b)
     if m:
         return m.group(1)
-    # Yapım yılı varsa (örn. "2007 yapımı")
+    # "2007 yapımı" → 2025-2007 = 18
     m = re.search(r"\b(19\d{2}|20[0-2]\d)\b", b)
     if m:
         yil = int(m.group(1))
-        yas = max(0, 2025 - yil)
-        return str(yas)
+        return str(max(0, 2025 - yil))
     return str(random.randint(0, 25))
 
 def simulate_esya(baslik: str) -> str:
     b = baslik.lower()
     if any(k in b for k in ["eşyalı", "mobilyalı", "full eşya", "full mobilya", "eşyali"]):
         return "Eşyalı"
-    if any(k in b for k in ["eşyasız", "boş daire", "boş ev", "boyali boş"]):
+    if any(k in b for k in ["eşyasız", "boş daire", "boş ev"]):
         return "Eşyasız"
     return "Eşyalı" if random.random() < 0.40 else "Eşyasız"
 
@@ -557,40 +518,45 @@ def simulate_isitma(baslik: str, tier: str) -> str:
 
 # ─────────────────────────────────────────────────────────────────────────────
 def process_row(row: dict, index: int) -> dict:
+    """Fill missing values in a row using simulation rules.
+    Uses is_empty() to correctly handle None, '', and pandas-written 'NaN' strings.
+    """
     random.seed(index)
 
-    baslik = row.get("Başlık", "")
-    konum  = row.get("Konum", "")
+    baslik = row.get("Başlık", "") or ""
+    konum  = row.get("Konum",  "") or ""
     tier   = get_tier(konum)
 
     # Oda Sayısı
-    oda = row.get("Oda Sayısı", "").strip()
-    if not oda:
+    oda = row.get("Oda Sayısı", "")
+    if is_empty(oda):
         oda = extract_room_count(baslik)
         row["Oda Sayısı"] = oda
+    else:
+        oda = str(oda).strip()
 
     # Metrekare
-    if not row.get("Metrekare", "").strip():
+    if is_empty(row.get("Metrekare")):
         row["Metrekare"] = simulate_metrekare(baslik, oda)
 
     # Kat
-    if not row.get("Kat", "").strip():
+    if is_empty(row.get("Kat")):
         row["Kat"] = simulate_kat(baslik)
 
     # Fiyat
-    if not row.get("Fiyat", "").strip():
+    if is_empty(row.get("Fiyat")):
         row["Fiyat"] = simulate_fiyat(baslik, oda, konum)
 
     # Yapı Yaşı
-    if not row.get("Yapı Yaşı", "").strip():
+    if is_empty(row.get("Yapı Yaşı")):
         row["Yapı Yaşı"] = simulate_yapi_yasi(baslik)
 
     # Eşya
-    if not row.get("Eşya", "").strip():
+    if is_empty(row.get("Eşya")):
         row["Eşya"] = simulate_esya(baslik)
 
     # Isıtma
-    if not row.get("Isıtma", "").strip():
+    if is_empty(row.get("Isıtma")):
         row["Isıtma"] = simulate_isitma(baslik, tier)
 
     return row
