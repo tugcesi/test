@@ -12,7 +12,7 @@ Dynamic pricing: ilce_ort × mahalle_katsayi
   Ekonomik mahalle: katsayi 0.65–0.80
 
 Soft clamp: MIN_KATSAYI=0.65, MAX_KATSAYI=1.60
-std = m2_fiyat × 0.18
+std = m2_fiyat × 0.08  (eski: 0.18)
 """
 
 import csv
@@ -502,12 +502,12 @@ def is_empty(val) -> bool:
     s = str(val).strip()
     return s == "" or s.lower() == "nan"
 
-def hesapla_m2_fiyat(ilce: str, katsayi: float) -> tuple[int, int]:
-    """İlçe ortalaması × katsayı ile m2_fiyat ve std hesapla."""
+def hesapla_m2_fiyat(ilce: str, katsayi: float) -> tuple[float, float]:
+    """İlçe ortalaması × katsayı ile m2_fiyat ve std hesapla. std = m2_fiyat × 0.08"""
     ilce_ort = ILCE_ORT.get(ilce, 370)  # fallback: İstanbul genel ort
     katsayi = max(MIN_KATSAYI, min(MAX_KATSAYI, katsayi))  # soft clamp
-    m2_fiyat = int(ilce_ort * katsayi)
-    std = int(m2_fiyat * 0.18)
+    m2_fiyat = ilce_ort * katsayi
+    std = m2_fiyat * 0.08
     return m2_fiyat, std
 
 
@@ -644,7 +644,7 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         except ValueError:
             pass
 
-    # 2. Mahalle düzeyinde katsayı bazlı fiyatlandırma
+    # 2. Mahalle lookup
     mahalle_data, segment, ilce_adi = lookup_mahalle(konum)
     tier = get_tier(konum)
 
@@ -655,18 +655,25 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         fb = TIER_FALLBACK.get(tier, TIER_FALLBACK["orta"])
         m2_birim, std = hesapla_m2_fiyat("", fb["katsayi"])
 
-    villa = is_villa_like(baslik)
-    if villa:
-        m2_birim = int(m2_birim * 1.4)
-        std = int(std * 1.4)
+    # Villa çarpanı
+    if is_villa_like(baslik):
+        m2_birim *= 1.4
+        std *= 1.2
 
+    # m² — triangular dağılım (daha gerçekçi)
     lo_m2, hi_m2 = ODA_M2.get(oda, (120, 200))
-    m2 = random.randint(lo_m2, hi_m2)
+    m2 = int(random.triangular(lo_m2, hi_m2, (lo_m2 + hi_m2) / 2))
 
-    noise = random.gauss(0, std)
-    fiyat = int(m2 * m2_birim + noise)
+    # Noise birim fiyata uygulanıyor (toplam fiyata DEĞİL)
+    m2_birim_noisy = random.gauss(m2_birim, std)
+
+    fiyat = int(m2 * m2_birim_noisy)
     fiyat = max(5000, fiyat)
     fiyat = round(fiyat / 500) * 500
+
+    # Debug (geçici)
+    # print(f"{konum} | {ilce_adi} | katsayi={katsayi:.2f} | m2_birim={m2_birim:.0f} | m2={m2} | fiyat={fiyat}")
+
     return str(fiyat)
 
 
