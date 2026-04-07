@@ -4,19 +4,15 @@ Simulate missing values for istanbul_kiralik_complete.csv
 and produce istanbul_kiralik_simulated.csv
 
 Pricing model: mahalle-level TL/m² rates derived from
-Endeksa.com Mart 2026 Istanbul rental data (ilce ortalamalarından
-lüks/orta/ekonomik mahalle katsayılarıyla türetilmiştir).
-  Lüks mahalle:     ilce_ort × 1.40–1.55
-  Orta mahalle:     ilce_ort × 0.95–1.05
-  Ekonomik mahalle: ilce_ort × 0.70–0.75
-std = m2_fiyat × 0.18
+Endeksa.com Mart 2026 Istanbul rental data.
 
-ILCE_ISTATISTIK tablosu: Endeksa.com Mart 2026 ilçe bazlı satılık veriler.
-  m2_kira        – ortalama kira TL/m²
-  ort_deger      – satılık ortalama m² fiyatı (TL)
-  amortisman_yil – amortisman süresi (yıl)
-  getiri         – yıllık kira getirisi (%)
-  yillik_degisim – yıllık fiyat değişimi (%)
+Dynamic pricing: ilce_ort × mahalle_katsayi
+  Lüks mahalle:     katsayi 1.35–1.60
+  Orta mahalle:     katsayi 0.90–1.05
+  Ekonomik mahalle: katsayi 0.65–0.80
+
+Soft clamp: MIN_KATSAYI=0.65, MAX_KATSAYI=1.60
+std = m2_fiyat × 0.18
 """
 
 import csv
@@ -25,6 +21,28 @@ import re
 
 INPUT_FILE  = "istanbul_kiralik_complete.csv"
 OUTPUT_FILE = "istanbul_kiralik_simulated.csv"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SOFT CLAMP SINIRLARI
+# ─────────────────────────────────────────────────────────────────────────────
+MIN_KATSAYI = 0.65
+MAX_KATSAYI = 1.60
+
+# ─────────────────────────────────────────────────────────────────────────────
+# İLÇE ORTALAMA KİRA (TL/m²) — Endeksa Mart 2026
+# ─────────────────────────────────────────────────────────────────────────────
+ILCE_ORT: dict[str, int] = {
+    "Esenyurt": 228, "Sultangazi": 237, "Arnavutköy": 240, "Silivri": 247,
+    "Esenler": 251, "Sultanbeyli": 262, "Büyükçekmece": 282, "Beylikdüzü": 289,
+    "Sancaktepe": 294, "Çatalca": 294, "Gaziosmanpaşa": 294, "Bağcılar": 297,
+    "Avcılar": 307, "Tuzla": 322, "Bayrampaşa": 326, "Güngören": 326,
+    "Fatih": 330, "Pendik": 330, "Beykoz": 356, "Başakşehir": 357,
+    "Çekmeköy": 364, "Küçükçekmece": 367, "Ümraniye": 374, "Şile": 375,
+    "Kağıthane": 391, "Bahçelievler": 393, "Kartal": 413, "Eyüpsultan": 418,
+    "Üsküdar": 425, "Maltepe": 440, "Şişli": 452, "Ataşehir": 460,
+    "Beyoğlu": 492, "Adalar": 547, "Zeytinburnu": 585, "Sarıyer": 590,
+    "Bakırköy": 591, "Beşiktaş": 592, "Kadıköy": 651,
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MAHALLE FİYAT TABLOSU
@@ -38,225 +56,225 @@ MAHALLELER: dict[str, dict] = {
     "Üst Segment – Boğaz (Avrupa)": {
         # Beşiktaş ilçe ort: 592 TL/m²
         "Beşiktaş": {
-            "Bebek":              {"m2_fiyat": 920, "std": 166},
-            "Arnavutköy(Beş)":    {"m2_fiyat": 860, "std": 155},
-            "Etiler":             {"m2_fiyat": 830, "std": 149},
-            "Levent":             {"m2_fiyat": 720, "std": 130},
-            "Ortaköy":            {"m2_fiyat": 650, "std": 117},
-            "Balmumcu":           {"m2_fiyat": 590, "std": 106},
-            "Beşiktaş Merkez":    {"m2_fiyat": 500, "std": 90},
-            "Dikilitaş":          {"m2_fiyat": 430, "std": 77},
+            "Bebek":              {"katsayi": 1.55},
+            "Arnavutköy(Beş)":    {"katsayi": 1.45},
+            "Etiler":             {"katsayi": 1.40},
+            "Levent":             {"katsayi": 1.22},
+            "Ortaköy":            {"katsayi": 1.10},
+            "Balmumcu":           {"katsayi": 1.00},
+            "Beşiktaş Merkez":    {"katsayi": 0.84},
+            "Dikilitaş":          {"katsayi": 0.73},
         },
         # Sarıyer ilçe ort: 590 TL/m²
         "Sarıyer": {
-            "Yeniköy":            {"m2_fiyat": 910, "std": 164},
-            "Tarabya":            {"m2_fiyat": 860, "std": 155},
-            "İstinye":            {"m2_fiyat": 770, "std": 139},
-            "Zekeriyaköy":        {"m2_fiyat": 650, "std": 117},
-            "Maslak":             {"m2_fiyat": 590, "std": 106},
-            "Sarıyer Merkez":     {"m2_fiyat": 500, "std": 90},
-            "Rumelifeneri":       {"m2_fiyat": 430, "std": 77},
+            "Yeniköy":            {"katsayi": 1.54},
+            "Tarabya":            {"katsayi": 1.46},
+            "İstinye":            {"katsayi": 1.31},
+            "Zekeriyaköy":        {"katsayi": 1.10},
+            "Maslak":             {"katsayi": 1.00},
+            "Sarıyer Merkez":     {"katsayi": 0.85},
+            "Rumelifeneri":       {"katsayi": 0.73},
         },
     },
 
     "Üst-Orta Segment – Merkez Avrupa": {
         # Şişli ilçe ort: 452 TL/m²
         "Şişli": {
-            "Nişantaşı":          {"m2_fiyat": 700, "std": 126},
-            "Teşvikiye":          {"m2_fiyat": 650, "std": 117},
-            "Fulya":              {"m2_fiyat": 560, "std": 101},
-            "Bomonti":            {"m2_fiyat": 510, "std": 92},
-            "Mecidiyeköy":        {"m2_fiyat": 450, "std": 81},
-            "Şişli Merkez":       {"m2_fiyat": 390, "std": 70},
-            "Gülbahar":           {"m2_fiyat": 330, "std": 59},
+            "Nişantaşı":          {"katsayi": 1.55},
+            "Teşvikiye":          {"katsayi": 1.44},
+            "Fulya":              {"katsayi": 1.24},
+            "Bomonti":            {"katsayi": 1.13},
+            "Mecidiyeköy":        {"katsayi": 1.00},
+            "Şişli Merkez":       {"katsayi": 0.86},
+            "Gülbahar":           {"katsayi": 0.73},
         },
         # Beyoğlu ilçe ort: 492 TL/m²
         "Beyoğlu": {
-            "Cihangir":           {"m2_fiyat": 760, "std": 137},
-            "Galata":             {"m2_fiyat": 690, "std": 124},
-            "Çukurcuma":          {"m2_fiyat": 640, "std": 115},
-            "Karaköy":            {"m2_fiyat": 580, "std": 104},
-            "Taksim":             {"m2_fiyat": 540, "std": 97},
-            "Beyoğlu Merkez":     {"m2_fiyat": 490, "std": 88},
-            "Tarlabaşı":          {"m2_fiyat": 360, "std": 65},
+            "Cihangir":           {"katsayi": 1.54},
+            "Galata":             {"katsayi": 1.40},
+            "Çukurcuma":          {"katsayi": 1.30},
+            "Karaköy":            {"katsayi": 1.18},
+            "Taksim":             {"katsayi": 1.10},
+            "Beyoğlu Merkez":     {"katsayi": 1.00},
+            "Tarlabaşı":          {"katsayi": 0.73},
         },
         # Kağıthane ilçe ort: 391 TL/m²
         "Kağıthane": {
-            "Seyrantepe":         {"m2_fiyat": 550, "std": 99},
-            "Çağlayan":           {"m2_fiyat": 470, "std": 85},
-            "Kağıthane Merkez":   {"m2_fiyat": 390, "std": 70},
-            "Gültepe":            {"m2_fiyat": 320, "std": 58},
-            "Hamidiye":           {"m2_fiyat": 280, "std": 50},
+            "Seyrantepe":         {"katsayi": 1.41},
+            "Çağlayan":           {"katsayi": 1.20},
+            "Kağıthane Merkez":   {"katsayi": 1.00},
+            "Gültepe":            {"katsayi": 0.82},
+            "Hamidiye":           {"katsayi": 0.72},
         },
         # Eyüpsultan ilçe ort: 418 TL/m²
         "Eyüpsultan": {
-            "Alibeyköy":          {"m2_fiyat": 560, "std": 101},
-            "Eyüp Merkez":        {"m2_fiyat": 460, "std": 83},
-            "İslambey":           {"m2_fiyat": 420, "std": 76},
-            "Rami":               {"m2_fiyat": 340, "std": 61},
-            "Topçular":           {"m2_fiyat": 300, "std": 54},
+            "Alibeyköy":          {"katsayi": 1.34},
+            "Eyüp Merkez":        {"katsayi": 1.10},
+            "İslambey":           {"katsayi": 1.00},
+            "Rami":               {"katsayi": 0.81},
+            "Topçular":           {"katsayi": 0.72},
         },
     },
 
     "Orta Segment – Tarihi Yarımada": {
         # Fatih ilçe ort: 330 TL/m²
         "Fatih": {
-            "Sultanahmet":        {"m2_fiyat": 500, "std": 90},
-            "Balat":              {"m2_fiyat": 460, "std": 83},
-            "Fener":              {"m2_fiyat": 430, "std": 77},
-            "Fatih Merkez":       {"m2_fiyat": 330, "std": 59},
-            "Samatya":            {"m2_fiyat": 300, "std": 54},
-            "Aksaray":            {"m2_fiyat": 280, "std": 50},
-            "Topkapı":            {"m2_fiyat": 240, "std": 43},
+            "Sultanahmet":        {"katsayi": 1.52},
+            "Balat":              {"katsayi": 1.39},
+            "Fener":              {"katsayi": 1.30},
+            "Fatih Merkez":       {"katsayi": 1.00},
+            "Samatya":            {"katsayi": 0.91},
+            "Aksaray":            {"katsayi": 0.85},
+            "Topkapı":            {"katsayi": 0.73},
         },
     },
 
     "Orta Segment – Güney Avrupa": {
         # Bakırköy ilçe ort: 591 TL/m²
         "Bakırköy": {
-            "Ataköy 1-4":         {"m2_fiyat": 890, "std": 160},
-            "Ataköy 5-11":        {"m2_fiyat": 800, "std": 144},
-            "Yeşilköy":           {"m2_fiyat": 730, "std": 131},
-            "Florya":             {"m2_fiyat": 680, "std": 122},
-            "Bakırköy Merkez":    {"m2_fiyat": 590, "std": 106},
-            "Kartaltepe":         {"m2_fiyat": 430, "std": 77},
+            "Ataköy 1-4":         {"katsayi": 1.51},
+            "Ataköy 5-11":        {"katsayi": 1.35},
+            "Yeşilköy":           {"katsayi": 1.24},
+            "Florya":             {"katsayi": 1.15},
+            "Bakırköy Merkez":    {"katsayi": 1.00},
+            "Kartaltepe":         {"katsayi": 0.73},
         },
         # Zeytinburnu ilçe ort: 585 TL/m²
         "Zeytinburnu": {
-            "Yeşiltepe":          {"m2_fiyat": 820, "std": 148},
-            "Kazlıçeşme":         {"m2_fiyat": 680, "std": 122},
-            "Seyitnizam":         {"m2_fiyat": 590, "std": 106},
-            "Veliefendi":         {"m2_fiyat": 520, "std": 94},
-            "Merkezefendi":       {"m2_fiyat": 420, "std": 76},
+            "Yeşiltepe":          {"katsayi": 1.40},
+            "Kazlıçeşme":         {"katsayi": 1.16},
+            "Seyitnizam":         {"katsayi": 1.01},
+            "Veliefendi":         {"katsayi": 0.89},
+            "Merkezefendi":       {"katsayi": 0.72},
         },
         # Bahçelievler ilçe ort: 393 TL/m²
         "Bahçelievler": {
-            "Yenibosna":          {"m2_fiyat": 550, "std": 99},
-            "Bahçelievler Mrk.":  {"m2_fiyat": 430, "std": 77},
-            "Şirinevler":         {"m2_fiyat": 390, "std": 70},
-            "Soğanlı":            {"m2_fiyat": 340, "std": 61},
-            "Kocasinan":          {"m2_fiyat": 280, "std": 50},
+            "Yenibosna":          {"katsayi": 1.40},
+            "Bahçelievler Mrk.":  {"katsayi": 1.09},
+            "Şirinevler":         {"katsayi": 0.99},
+            "Soğanlı":            {"katsayi": 0.87},
+            "Kocasinan":          {"katsayi": 0.71},
         },
         # Güngören ilçe ort: 326 TL/m²
         "Güngören": {
-            "Güngören Merkez":    {"m2_fiyat": 460, "std": 83},
-            "Tozkoparan":         {"m2_fiyat": 390, "std": 70},
-            "Mehmetçik":          {"m2_fiyat": 330, "std": 59},
-            "Sefaköy":            {"m2_fiyat": 240, "std": 43},
+            "Güngören Merkez":    {"katsayi": 1.41},
+            "Tozkoparan":         {"katsayi": 1.20},
+            "Mehmetçik":          {"katsayi": 1.01},
+            "Sefaköy":            {"katsayi": 0.74},
         },
         # Küçükçekmece ilçe ort: 367 TL/m²
         "Küçükçekmece": {
-            "Atakent":            {"m2_fiyat": 520, "std": 94},
-            "Halkalı":            {"m2_fiyat": 430, "std": 77},
-            "Küçükçekmece Mrk.":  {"m2_fiyat": 370, "std": 67},
-            "İnönü":              {"m2_fiyat": 310, "std": 56},
-            "Tevfikbey":          {"m2_fiyat": 265, "std": 48},
+            "Atakent":            {"katsayi": 1.42},
+            "Halkalı":            {"katsayi": 1.17},
+            "Küçükçekmece Mrk.":  {"katsayi": 1.01},
+            "İnönü":              {"katsayi": 0.84},
+            "Tevfikbey":          {"katsayi": 0.72},
         },
     },
 
     "Alt-Orta Segment – Batı Avrupa": {
         # Bağcılar ilçe ort: 297 TL/m²
         "Bağcılar": {
-            "Güneşli":            {"m2_fiyat": 420, "std": 76},
-            "Mahmutbey":          {"m2_fiyat": 360, "std": 65},
-            "Bağcılar Merkez":    {"m2_fiyat": 300, "std": 54},
-            "Kirazlı":            {"m2_fiyat": 270, "std": 49},
-            "Sefaköy(Bağ)":       {"m2_fiyat": 215, "std": 39},
+            "Güneşli":            {"katsayi": 1.41},
+            "Mahmutbey":          {"katsayi": 1.21},
+            "Bağcılar Merkez":    {"katsayi": 1.01},
+            "Kirazlı":            {"katsayi": 0.91},
+            "Sefaköy(Bağ)":       {"katsayi": 0.72},
         },
         # Avcılar ilçe ort: 307 TL/m²
         "Avcılar": {
-            "Denizköşkler":       {"m2_fiyat": 430, "std": 77},
-            "Avcılar Merkez":     {"m2_fiyat": 370, "std": 67},
-            "Cihangir(Avc)":      {"m2_fiyat": 310, "std": 56},
-            "Ambarlı":            {"m2_fiyat": 255, "std": 46},
-            "Firuzköy":           {"m2_fiyat": 220, "std": 40},
+            "Denizköşkler":       {"katsayi": 1.40},
+            "Avcılar Merkez":     {"katsayi": 1.21},
+            "Cihangir(Avc)":      {"katsayi": 1.01},
+            "Ambarlı":            {"katsayi": 0.83},
+            "Firuzköy":           {"katsayi": 0.72},
         },
         # Beylikdüzü ilçe ort: 289 TL/m²
         "Beylikdüzü": {
-            "Büyükşehir":         {"m2_fiyat": 410, "std": 74},
-            "Gürpınar":           {"m2_fiyat": 360, "std": 65},
-            "Beylikdüzü Mrk.":    {"m2_fiyat": 290, "std": 52},
-            "Adnan Kahveci":      {"m2_fiyat": 250, "std": 45},
-            "Cumhuriyet":         {"m2_fiyat": 210, "std": 38},
+            "Büyükşehir":         {"katsayi": 1.42},
+            "Gürpınar":           {"katsayi": 1.25},
+            "Beylikdüzü Mrk.":    {"katsayi": 1.00},
+            "Adnan Kahveci":      {"katsayi": 0.87},
+            "Cumhuriyet":         {"katsayi": 0.73},
         },
         # Bayrampaşa ilçe ort: 326 TL/m²
         "Bayrampaşa": {
-            "Yıldırım":           {"m2_fiyat": 460, "std": 83},
-            "Bayrampaşa Merkez":  {"m2_fiyat": 360, "std": 65},
-            "Muratpaşa":          {"m2_fiyat": 330, "std": 59},
-            "Altıntepsi":         {"m2_fiyat": 235, "std": 42},
+            "Yıldırım":           {"katsayi": 1.41},
+            "Bayrampaşa Merkez":  {"katsayi": 1.10},
+            "Muratpaşa":          {"katsayi": 1.01},
+            "Altıntepsi":         {"katsayi": 0.72},
         },
         # Gaziosmanpaşa ilçe ort: 294 TL/m²
         "Gaziosmanpaşa": {
-            "Karadeniz":          {"m2_fiyat": 415, "std": 75},
-            "GOP Merkez":         {"m2_fiyat": 330, "std": 59},
-            "Fevzi Çakmak(GOP)":  {"m2_fiyat": 295, "std": 53},
-            "Karlıtepe":          {"m2_fiyat": 250, "std": 45},
-            "Yenidoğan(GOP)":     {"m2_fiyat": 210, "std": 38},
+            "Karadeniz":          {"katsayi": 1.41},
+            "GOP Merkez":         {"katsayi": 1.12},
+            "Fevzi Çakmak(GOP)":  {"katsayi": 1.00},
+            "Karlıtepe":          {"katsayi": 0.85},
+            "Yenidoğan(GOP)":     {"katsayi": 0.71},
         },
         # Başakşehir ilçe ort: 357 TL/m²
         "Başakşehir": {
-            "Başakşehir 4.etap":  {"m2_fiyat": 500, "std": 90},
-            "Başakşehir 5.etap":  {"m2_fiyat": 470, "std": 85},
-            "Başakşehir Mrk.":    {"m2_fiyat": 360, "std": 65},
-            "Kayabaşı":           {"m2_fiyat": 310, "std": 56},
-            "İkitelli":           {"m2_fiyat": 260, "std": 47},
+            "Başakşehir 4.etap":  {"katsayi": 1.40},
+            "Başakşehir 5.etap":  {"katsayi": 1.32},
+            "Başakşehir Mrk.":    {"katsayi": 1.01},
+            "Kayabaşı":           {"katsayi": 0.87},
+            "İkitelli":           {"katsayi": 0.73},
         },
         # Esenyurt ilçe ort: 228 TL/m²
         "Esenyurt": {
-            "Esenyurt Merkez":    {"m2_fiyat": 320, "std": 58},
-            "Fatih Mah.(Esen)":   {"m2_fiyat": 260, "std": 47},
-            "Pınar":              {"m2_fiyat": 230, "std": 41},
-            "Saadetdere":         {"m2_fiyat": 200, "std": 36},
-            "Mehterçeşme":        {"m2_fiyat": 165, "std": 30},
+            "Esenyurt Merkez":    {"katsayi": 1.40},
+            "Fatih Mah.(Esen)":   {"katsayi": 1.14},
+            "Pınar":              {"katsayi": 1.01},
+            "Saadetdere":         {"katsayi": 0.88},
+            "Mehterçeşme":        {"katsayi": 0.72},
         },
         # Büyükçekmece ilçe ort: 282 TL/m²
         "Büyükçekmece": {
-            "Kumburgaz":          {"m2_fiyat": 395, "std": 71},
-            "Büyükçekmece Mrk.":  {"m2_fiyat": 310, "std": 56},
-            "Mimaroba":           {"m2_fiyat": 285, "std": 51},
-            "Gürpınar(Büy)":      {"m2_fiyat": 240, "std": 43},
-            "Tepecik":            {"m2_fiyat": 205, "std": 37},
+            "Kumburgaz":          {"katsayi": 1.40},
+            "Büyükçekmece Mrk.":  {"katsayi": 1.10},
+            "Mimaroba":           {"katsayi": 1.01},
+            "Gürpınar(Büy)":      {"katsayi": 0.85},
+            "Tepecik":            {"katsayi": 0.73},
         },
         # Esenler ilçe ort: 251 TL/m²
         "Esenler": {
-            "Tuna":               {"m2_fiyat": 355, "std": 64},
-            "Esenler Merkez":     {"m2_fiyat": 280, "std": 50},
-            "Havaalanı":          {"m2_fiyat": 250, "std": 45},
-            "Nenehatun":          {"m2_fiyat": 215, "std": 39},
-            "Menderes":           {"m2_fiyat": 180, "std": 32},
+            "Tuna":               {"katsayi": 1.41},
+            "Esenler Merkez":     {"katsayi": 1.12},
+            "Havaalanı":          {"katsayi": 1.00},
+            "Nenehatun":          {"katsayi": 0.86},
+            "Menderes":           {"katsayi": 0.72},
         },
         # Sultangazi ilçe ort: 237 TL/m²
         "Sultangazi": {
-            "Uğur Mumcu(Sul)":    {"m2_fiyat": 335, "std": 60},
-            "Sultangazi Merkez":  {"m2_fiyat": 265, "std": 48},
-            "Cebeci":             {"m2_fiyat": 240, "std": 43},
-            "Habibler":           {"m2_fiyat": 200, "std": 36},
-            "Gazi":               {"m2_fiyat": 170, "std": 31},
+            "Uğur Mumcu(Sul)":    {"katsayi": 1.41},
+            "Sultangazi Merkez":  {"katsayi": 1.12},
+            "Cebeci":             {"katsayi": 1.01},
+            "Habibler":           {"katsayi": 0.84},
+            "Gazi":               {"katsayi": 0.72},
         },
         # Arnavutköy ilçe ort: 240 TL/m²
         "Arnavutköy": {
-            "Hadımköy":           {"m2_fiyat": 340, "std": 61},
-            "Arnavutköy Merkez":  {"m2_fiyat": 270, "std": 49},
-            "Bolluca":            {"m2_fiyat": 240, "std": 43},
-            "Haraçcı":            {"m2_fiyat": 200, "std": 36},
-            "İmrahor":            {"m2_fiyat": 175, "std": 32},
+            "Hadımköy":           {"katsayi": 1.42},
+            "Arnavutköy Merkez":  {"katsayi": 1.12},
+            "Bolluca":            {"katsayi": 1.00},
+            "Haraçcı":            {"katsayi": 0.83},
+            "İmrahor":            {"katsayi": 0.73},
         },
         # Silivri ilçe ort: 247 TL/m²
         "Silivri": {
-            "Silivri Merkez":     {"m2_fiyat": 350, "std": 63},
-            "Selimpaşa":          {"m2_fiyat": 290, "std": 52},
-            "Silivri Çiftlikköy": {"m2_fiyat": 250, "std": 45},
-            "Fener(Sil)":         {"m2_fiyat": 210, "std": 38},
-            "Ortaköy(Sil)":       {"m2_fiyat": 180, "std": 32},
+            "Silivri Merkez":     {"katsayi": 1.42},
+            "Selimpaşa":          {"katsayi": 1.17},
+            "Silivri Çiftlikköy": {"katsayi": 1.01},
+            "Fener(Sil)":         {"katsayi": 0.85},
+            "Ortaköy(Sil)":       {"katsayi": 0.73},
         },
         # Çatalca ilçe ort: 294 TL/m²
         "Çatalca": {
-            "Çatalca Merkez":     {"m2_fiyat": 415, "std": 75},
-            "Ferhatpaşa(Çat)":    {"m2_fiyat": 345, "std": 62},
-            "Kaleiçi":            {"m2_fiyat": 295, "std": 53},
-            "Karacaköy":          {"m2_fiyat": 245, "std": 44},
-            "Elbasan":            {"m2_fiyat": 215, "std": 39},
+            "Çatalca Merkez":     {"katsayi": 1.41},
+            "Ferhatpaşa(Çat)":    {"katsayi": 1.17},
+            "Kaleiçi":            {"katsayi": 1.00},
+            "Karacaköy":          {"katsayi": 0.83},
+            "Elbasan":            {"katsayi": 0.73},
         },
     },
 
@@ -265,135 +283,135 @@ MAHALLELER: dict[str, dict] = {
     "Üst Segment – Boğaz (Anadolu)": {
         # Üsküdar ilçe ort: 425 TL/m²
         "Üsküdar": {
-            "Çengelköy":          {"m2_fiyat": 660, "std": 119},
-            "Kuzguncuk":          {"m2_fiyat": 610, "std": 110},
-            "Beylerbeyi":         {"m2_fiyat": 560, "std": 101},
-            "Acıbadem(Üsk)":      {"m2_fiyat": 510, "std": 92},
-            "Üsküdar Merkez":     {"m2_fiyat": 425, "std": 77},
-            "Bağlarbaşı":         {"m2_fiyat": 390, "std": 70},
-            "Ümraniye(Üsk)":      {"m2_fiyat": 310, "std": 56},
+            "Çengelköy":          {"katsayi": 1.55},
+            "Kuzguncuk":          {"katsayi": 1.44},
+            "Beylerbeyi":         {"katsayi": 1.32},
+            "Acıbadem(Üsk)":      {"katsayi": 1.20},
+            "Üsküdar Merkez":     {"katsayi": 1.00},
+            "Bağlarbaşı":         {"katsayi": 0.92},
+            "Ümraniye(Üsk)":      {"katsayi": 0.73},
         },
         # Beykoz ilçe ort: 356 TL/m²
         "Beykoz": {
-            "Anadoluhisarı":      {"m2_fiyat": 550, "std": 99},
-            "Kavacık":            {"m2_fiyat": 470, "std": 85},
-            "Beykoz Merkez":      {"m2_fiyat": 360, "std": 65},
-            "Paşabahçe":          {"m2_fiyat": 310, "std": 56},
-            "Çubuklu":            {"m2_fiyat": 260, "std": 47},
+            "Anadoluhisarı":      {"katsayi": 1.54},
+            "Kavacık":            {"katsayi": 1.32},
+            "Beykoz Merkez":      {"katsayi": 1.01},
+            "Paşabahçe":          {"katsayi": 0.87},
+            "Çubuklu":            {"katsayi": 0.73},
         },
         # Adalar ilçe ort: 547 TL/m²
         "Adalar": {
-            "Büyükada":           {"m2_fiyat": 770, "std": 139},
-            "Heybeliada":         {"m2_fiyat": 640, "std": 115},
-            "Burgazada":          {"m2_fiyat": 550, "std": 99},
-            "Kınalıada":          {"m2_fiyat": 470, "std": 85},
-            "Adalar Merkez":      {"m2_fiyat": 400, "std": 72},
+            "Büyükada":           {"katsayi": 1.41},
+            "Heybeliada":         {"katsayi": 1.17},
+            "Burgazada":          {"katsayi": 1.01},
+            "Kınalıada":          {"katsayi": 0.86},
+            "Adalar Merkez":      {"katsayi": 0.73},
         },
     },
 
     "Üst-Orta Segment – Anadolu Merkez": {
         # Kadıköy ilçe ort: 651 TL/m²
         "Kadıköy": {
-            "Moda":               {"m2_fiyat": 1010, "std": 182},
-            "Fenerbahçe":         {"m2_fiyat": 930,  "std": 167},
-            "Bağdat Caddesi":     {"m2_fiyat": 880,  "std": 158},
-            "Caddebostan":        {"m2_fiyat": 830,  "std": 149},
-            "Erenköy":            {"m2_fiyat": 750,  "std": 135},
-            "Acıbadem(Kad)":      {"m2_fiyat": 680,  "std": 122},
-            "Göztepe":            {"m2_fiyat": 650,  "std": 117},
-            "Kozyatağı":          {"m2_fiyat": 580,  "std": 104},
-            "Kadıköy Merkez":     {"m2_fiyat": 540,  "std": 97},
-            "Bostancı":           {"m2_fiyat": 470,  "std": 85},
+            "Moda":               {"katsayi": 1.55},
+            "Fenerbahçe":         {"katsayi": 1.43},
+            "Bağdat Caddesi":     {"katsayi": 1.35},
+            "Caddebostan":        {"katsayi": 1.27},
+            "Erenköy":            {"katsayi": 1.15},
+            "Acıbadem(Kad)":      {"katsayi": 1.04},
+            "Göztepe":            {"katsayi": 1.00},
+            "Kozyatağı":          {"katsayi": 0.89},
+            "Kadıköy Merkez":     {"katsayi": 0.83},
+            "Bostancı":           {"katsayi": 0.72},
         },
         # Ataşehir ilçe ort: 460 TL/m²
         "Ataşehir": {
-            "İçerenköy":          {"m2_fiyat": 650,  "std": 117},
-            "Barbaros":           {"m2_fiyat": 590,  "std": 106},
-            "Ataşehir Merkez":    {"m2_fiyat": 520,  "std": 94},
-            "Küçükbakkalköy":     {"m2_fiyat": 460,  "std": 83},
-            "Kayışdağı":          {"m2_fiyat": 400,  "std": 72},
-            "Ferhatpaşa":         {"m2_fiyat": 335,  "std": 60},
+            "İçerenköy":          {"katsayi": 1.41},
+            "Barbaros":           {"katsayi": 1.28},
+            "Ataşehir Merkez":    {"katsayi": 1.13},
+            "Küçükbakkalköy":     {"katsayi": 1.00},
+            "Kayışdağı":          {"katsayi": 0.87},
+            "Ferhatpaşa":         {"katsayi": 0.73},
         },
         # Maltepe ilçe ort: 440 TL/m²
         "Maltepe": {
-            "Cevizli":            {"m2_fiyat": 620, "std": 112},
-            "Bağlarbaşı(Mal)":    {"m2_fiyat": 560, "std": 101},
-            "Maltepe Merkez":     {"m2_fiyat": 490, "std": 88},
-            "Altayçeşme":         {"m2_fiyat": 440, "std": 79},
-            "Büyükbakkalköy":     {"m2_fiyat": 370, "std": 67},
-            "Aydınevler":         {"m2_fiyat": 320, "std": 58},
+            "Cevizli":            {"katsayi": 1.41},
+            "Bağlarbaşı(Mal)":    {"katsayi": 1.27},
+            "Maltepe Merkez":     {"katsayi": 1.11},
+            "Altayçeşme":         {"katsayi": 1.00},
+            "Büyükbakkalköy":     {"katsayi": 0.84},
+            "Aydınevler":         {"katsayi": 0.73},
         },
     },
 
     "Orta Segment – Anadolu Orta Kuşak": {
         # Kartal ilçe ort: 413 TL/m²
         "Kartal": {
-            "Kordonboyu":         {"m2_fiyat": 580, "std": 104},
-            "Uğur Mumcu(Kar)":    {"m2_fiyat": 500, "std": 90},
-            "Kartal Merkez":      {"m2_fiyat": 415, "std": 75},
-            "Yakacık":            {"m2_fiyat": 370, "std": 67},
-            "Petrol İş":          {"m2_fiyat": 300, "std": 54},
+            "Kordonboyu":         {"katsayi": 1.40},
+            "Uğur Mumcu(Kar)":    {"katsayi": 1.21},
+            "Kartal Merkez":      {"katsayi": 1.00},
+            "Yakacık":            {"katsayi": 0.90},
+            "Petrol İş":          {"katsayi": 0.73},
         },
         # Ümraniye ilçe ort: 374 TL/m²
         "Ümraniye": {
-            "Site":               {"m2_fiyat": 530, "std": 95},
-            "Namık Kemal":        {"m2_fiyat": 460, "std": 83},
-            "Ümraniye Merkez":    {"m2_fiyat": 375, "std": 68},
-            "Dudullu":            {"m2_fiyat": 330, "std": 59},
-            "Çakmak":             {"m2_fiyat": 285, "std": 51},
-            "Alemdağ":            {"m2_fiyat": 270, "std": 49},
+            "Site":               {"katsayi": 1.42},
+            "Namık Kemal":        {"katsayi": 1.23},
+            "Ümraniye Merkez":    {"katsayi": 1.00},
+            "Dudullu":            {"katsayi": 0.88},
+            "Çakmak":             {"katsayi": 0.76},
+            "Alemdağ":            {"katsayi": 0.72},
         },
         # Çekmeköy ilçe ort: 364 TL/m²
         "Çekmeköy": {
-            "Çekmeköy Merkez":    {"m2_fiyat": 510, "std": 92},
-            "Taşdelen":           {"m2_fiyat": 450, "std": 81},
-            "Nişantepe":          {"m2_fiyat": 365, "std": 66},
-            "Mehmet Akif(Çek)":   {"m2_fiyat": 310, "std": 56},
-            "Ömerli":             {"m2_fiyat": 265, "std": 48},
+            "Çekmeköy Merkez":    {"katsayi": 1.40},
+            "Taşdelen":           {"katsayi": 1.24},
+            "Nişantepe":          {"katsayi": 1.00},
+            "Mehmet Akif(Çek)":   {"katsayi": 0.85},
+            "Ömerli":             {"katsayi": 0.73},
         },
         # Pendik ilçe ort: 330 TL/m²
         "Pendik": {
-            "İçmeler(Pen)":       {"m2_fiyat": 470, "std": 85},
-            "Yenişehir(Pen)":     {"m2_fiyat": 410, "std": 74},
-            "Kaynarca":           {"m2_fiyat": 370, "std": 67},
-            "Pendik Merkez":      {"m2_fiyat": 330, "std": 59},
-            "Kurtköy":            {"m2_fiyat": 280, "std": 50},
-            "Dolayoba":           {"m2_fiyat": 240, "std": 43},
+            "İçmeler(Pen)":       {"katsayi": 1.42},
+            "Yenişehir(Pen)":     {"katsayi": 1.24},
+            "Kaynarca":           {"katsayi": 1.12},
+            "Pendik Merkez":      {"katsayi": 1.00},
+            "Kurtköy":            {"katsayi": 0.85},
+            "Dolayoba":           {"katsayi": 0.73},
         },
     },
 
     "Alt-Orta Segment – Anadolu Dış Kuşak": {
         # Tuzla ilçe ort: 322 TL/m²
         "Tuzla": {
-            "İçmeler(Tuz)":       {"m2_fiyat": 455, "std": 82},
-            "Aydıntepe":          {"m2_fiyat": 390, "std": 70},
-            "Tuzla Merkez":       {"m2_fiyat": 325, "std": 59},
-            "Aydınlı":            {"m2_fiyat": 280, "std": 50},
-            "Mimar Sinan":        {"m2_fiyat": 235, "std": 42},
+            "İçmeler(Tuz)":       {"katsayi": 1.41},
+            "Aydıntepe":          {"katsayi": 1.21},
+            "Tuzla Merkez":       {"katsayi": 1.01},
+            "Aydınlı":            {"katsayi": 0.87},
+            "Mimar Sinan":        {"katsayi": 0.73},
         },
         # Sultanbeyli ilçe ort: 262 TL/m²
         "Sultanbeyli": {
-            "Mehmet Akif(Sul)":   {"m2_fiyat": 370, "std": 67},
-            "Sultanbeyli Mrk.":   {"m2_fiyat": 300, "std": 54},
-            "Hasanpaşa(Sul)":     {"m2_fiyat": 265, "std": 48},
-            "Battalgazi":         {"m2_fiyat": 230, "std": 41},
-            "Fatih(Sul)":         {"m2_fiyat": 190, "std": 34},
+            "Mehmet Akif(Sul)":   {"katsayi": 1.41},
+            "Sultanbeyli Mrk.":   {"katsayi": 1.15},
+            "Hasanpaşa(Sul)":     {"katsayi": 1.01},
+            "Battalgazi":         {"katsayi": 0.88},
+            "Fatih(Sul)":         {"katsayi": 0.73},
         },
         # Sancaktepe ilçe ort: 294 TL/m²
         "Sancaktepe": {
-            "Samandıra":          {"m2_fiyat": 415, "std": 75},
-            "Sancaktepe Mrk.":    {"m2_fiyat": 345, "std": 62},
-            "Yenidoğan(San)":     {"m2_fiyat": 295, "std": 53},
-            "Eyüp Sultan(San)":   {"m2_fiyat": 255, "std": 46},
-            "Sarıgazi":           {"m2_fiyat": 215, "std": 39},
+            "Samandıra":          {"katsayi": 1.41},
+            "Sancaktepe Mrk.":    {"katsayi": 1.17},
+            "Yenidoğan(San)":     {"katsayi": 1.00},
+            "Eyüp Sultan(San)":   {"katsayi": 0.87},
+            "Sarıgazi":           {"katsayi": 0.73},
         },
         # Şile ilçe ort: 375 TL/m²
         "Şile": {
-            "Şile Merkez":        {"m2_fiyat": 530, "std": 95},
-            "Ağva":               {"m2_fiyat": 440, "std": 79},
-            "Kumbaba":            {"m2_fiyat": 375, "std": 68},
-            "Doğancılı":          {"m2_fiyat": 315, "std": 57},
-            "Üvezli":             {"m2_fiyat": 275, "std": 50},
+            "Şile Merkez":        {"katsayi": 1.41},
+            "Ağva":               {"katsayi": 1.17},
+            "Kumbaba":            {"katsayi": 1.00},
+            "Doğancılı":          {"katsayi": 0.84},
+            "Üvezli":             {"katsayi": 0.73},
         },
     }
 }
@@ -451,11 +469,11 @@ ILCE_ISTATISTIK: dict[str, dict] = {
 
 # ── Tier fallback (mahalle bulunamazsa ilçe ortalamalarına dayalı değerler) ───
 TIER_FALLBACK = {
-    "üst":      {"m2_fiyat": 620, "std": 112},
-    "üst-orta": {"m2_fiyat": 460, "std": 83},
-    "orta":     {"m2_fiyat": 370, "std": 67},
-    "alt-orta": {"m2_fiyat": 270, "std": 49},
-    "alt":      {"m2_fiyat": 200, "std": 36},
+    "üst":      {"katsayi": 1.10},
+    "üst-orta": {"katsayi": 1.00},
+    "orta":     {"katsayi": 0.95},
+    "alt-orta": {"katsayi": 0.85},
+    "alt":      {"katsayi": 0.75},
 }
 
 # ── Oda → m² aralıkları ──────────────────────────────────────────────────────
@@ -484,15 +502,25 @@ def is_empty(val) -> bool:
     s = str(val).strip()
     return s == "" or s.lower() == "nan"
 
-def lookup_mahalle(konum: str) -> tuple[dict | None, str]:
+def hesapla_m2_fiyat(ilce: str, katsayi: float) -> tuple[int, int]:
+    """İlçe ortalaması × katsayı ile m2_fiyat ve std hesapla."""
+    ilce_ort = ILCE_ORT.get(ilce, 370)  # fallback: İstanbul genel ort
+    katsayi = max(MIN_KATSAYI, min(MAX_KATSAYI, katsayi))  # soft clamp
+    m2_fiyat = int(ilce_ort * katsayi)
+    std = int(m2_fiyat * 0.18)
+    return m2_fiyat, std
+
+
+def lookup_mahalle(konum: str) -> tuple[dict | None, str, str]:
     """
     Konum string'inden mahalle düzeyinde fiyat verisi arar.
-    Returns (fiyat_dict, segment_adi) — bulunamazsa (None, "").
+    Returns (fiyat_dict, segment_adi, ilce_adi) — bulunamazsa (None, "", "").
     Longest-match kullanır.
     """
     kl = konum.lower()
     best_data = None
     best_segment = ""
+    best_ilce = ""
     best_len = 0
 
     for segment, ilceler in MAHALLELER.items():
@@ -502,9 +530,10 @@ def lookup_mahalle(konum: str) -> tuple[dict | None, str]:
                 if key in kl and len(key) > best_len:
                     best_data = data
                     best_segment = segment
+                    best_ilce = ilce
                     best_len = len(key)
 
-    return best_data, best_segment
+    return best_data, best_segment, best_ilce
 
 
 def get_tier(konum: str) -> str:
@@ -512,7 +541,7 @@ def get_tier(konum: str) -> str:
     Konum'dan segment adını bulup tier döndürür.
     Mahalle eşleşmesi yoksa ilçe adına göre tahmin eder.
     """
-    _, segment = lookup_mahalle(konum)
+    _, segment, _ = lookup_mahalle(konum)
     if segment:
         sl = segment.lower()
         if sl.startswith("üst segment"):
@@ -615,17 +644,16 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
         except ValueError:
             pass
 
-    # 2. Mahalle düzeyinde m² bazlı fiyatlandırma
-    mahalle_data, segment = lookup_mahalle(konum)
+    # 2. Mahalle düzeyinde katsayı bazlı fiyatlandırma
+    mahalle_data, segment, ilce_adi = lookup_mahalle(konum)
     tier = get_tier(konum)
 
     if mahalle_data:
-        m2_birim = mahalle_data["m2_fiyat"]
-        std = mahalle_data["std"]
+        katsayi = mahalle_data["katsayi"]
+        m2_birim, std = hesapla_m2_fiyat(ilce_adi, katsayi)
     else:
         fb = TIER_FALLBACK.get(tier, TIER_FALLBACK["orta"])
-        m2_birim = fb["m2_fiyat"]
-        std = fb["std"]
+        m2_birim, std = hesapla_m2_fiyat("", fb["katsayi"])
 
     villa = is_villa_like(baslik)
     if villa:
