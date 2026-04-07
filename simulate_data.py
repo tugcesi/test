@@ -4,7 +4,7 @@ Simulate missing values for istanbul_kiralik_complete.csv
 and produce istanbul_kiralik_simulated.csv
 
 Pricing model: mahalle-level TL/m² rates derived from
-Endeksa.com 2025 Q1 Istanbul rental data + generate_istanbul_dataset.py.
+Endeksa.com 2025 Q1 Istanbul rental data (recalibrated).
 """
 
 import csv
@@ -14,308 +14,214 @@ import re
 INPUT_FILE  = "istanbul_kiralik_complete.csv"
 OUTPUT_FILE = "istanbul_kiralik_simulated.csv"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# BÖLGE > İLÇE > MAHALLE  →  m2_fiyat (TL/ay) + std
-# Kaynak: Endeksa.com 2025 Q1 & generate_istanbul_dataset.py
-# ─────────────────────────────────────────────────────────────────────────────
-MAHALLE_FIYAT: dict[str, dict] = {
-    # ── Beşiktaş ─────────────────────────────────────────────────────────────
-    "bebek":            {"m2": 3200, "std": 600},
-    "etiler":           {"m2": 2800, "std": 500},
-    "levent":           {"m2": 2400, "std": 450},
-    "arnavutköy mah":   {"m2": 2600, "std": 500},
-    "ortaköy":          {"m2": 2200, "std": 420},
-    "balmumcu":         {"m2": 1900, "std": 380},
-    "dikilitaş":        {"m2": 2000, "std": 400},
-    "gayrettepe":       {"m2": 2000, "std": 390},
-    "nisbetiye":        {"m2": 2300, "std": 440},
-    "akatlar":          {"m2": 2100, "std": 410},
-    "akat":             {"m2": 2100, "std": 410},
-    "levazım":          {"m2": 2200, "std": 430},
-    "abbasağa":         {"m2": 2400, "std": 460},
-    "cihannüma":        {"m2": 2200, "std": 430},
-    "vişnezade":        {"m2": 2300, "std": 440},
-    "sinanpaşa":        {"m2": 2100, "std": 410},
-    "türkali":          {"m2": 2000, "std": 400},
-    "muradiye":         {"m2": 2000, "std": 400},
-    "ulus mah":         {"m2": 2500, "std": 480},
-    # ── Sarıyer ──────────────────────────────────────────────────────────────
-    "yeniköy":          {"m2": 3000, "std": 580},
-    "tarabya":          {"m2": 2700, "std": 520},
-    "ferahevler":       {"m2": 2400, "std": 460},
-    "istinye":          {"m2": 2400, "std": 460},
-    "poligon":          {"m2": 2200, "std": 430},
-    "zekeriyaköy":      {"m2": 1800, "std": 350},
-    "maslak":           {"m2": 1600, "std": 320},
-    "ayazağa":          {"m2": 1400, "std": 280},
-    "rumeli":           {"m2": 1400, "std": 280},
-    "göktürk":          {"m2": 1600, "std": 320},
-    "çamlıtepe":        {"m2": 1300, "std": 260},
-    "cumhuriyet mah sarıyer": {"m2": 1200, "std": 250},
-    # ── Şişli ──────────────────────────────────────────────────────────────
-    "nişantaşı":        {"m2": 2500, "std": 480},
-    "teşvikiye":        {"m2": 2300, "std": 450},
-    "harbiye":          {"m2": 2100, "std": 410},
-    "meşrutiyet":       {"m2": 1700, "std": 340},
-    "bomonti":          {"m2": 1600, "std": 320},
-    "fulya":            {"m2": 1500, "std": 300},
-    "mecidiyeköy":      {"m2": 1300, "std": 260},
-    "esentepe":         {"m2": 1400, "std": 280},
-    "merkez mah şişli": {"m2": 1100, "std": 220},
-    "19 mayıs":         {"m2": 1200, "std": 240},
-    "ergenekon":        {"m2": 1100, "std": 220},
-    "bozkurt":          {"m2": 1000, "std": 210},
-    "feriköy":          {"m2": 1200, "std": 240},
-    "paşa mah":         {"m2": 1100, "std": 220},
-    "gülbahar":         {"m2": 1100, "std": 220},
-    "halide edip":      {"m2": 1100, "std": 220},
-    "kuştepe":          {"m2": 1000, "std": 210},
-    "yayla mah":        {"m2": 950,  "std": 200},
-    "eskişehir mah":    {"m2": 1100, "std": 220},
-    "inönü mah şişli":  {"m2": 1700, "std": 340},
-    "izzet paşa":       {"m2": 1100, "std": 220},
-    # ── Beyoğlu ──────────────────────────────────────────────────────────────
-    "cihangir":         {"m2": 2000, "std": 400},
-    "galata":           {"m2": 1800, "std": 360},
-    "karaköy":          {"m2": 1600, "std": 320},
-    "taksim":           {"m2": 1500, "std": 300},
-    "firuzağa":         {"m2": 1800, "std": 360},
-    "çukurcuma":        {"m2": 1700, "std": 340},
-    "tarlabaşı":        {"m2": 900,  "std": 200},
-    "hacıahmet":        {"m2": 1400, "std": 280},
-    "kalyoncu":         {"m2": 1200, "std": 250},
-    "bostan mah":       {"m2": 1100, "std": 230},
-    "kuloğlu":          {"m2": 1500, "std": 300},
-    "kulaksız":         {"m2": 900,  "std": 190},
-    "gümüşsuyu":        {"m2": 1700, "std": 340},
-    "ömer avni":        {"m2": 1700, "std": 340},
-    "kaptanpaşa":       {"m2": 1000, "std": 210},
-    "örnektepe":        {"m2": 800,  "std": 175},
-    "tomtom":           {"m2": 1800, "std": 360},
-    "istiklal mah":     {"m2": 1500, "std": 300},
-    "katip mustafa":    {"m2": 1400, "std": 280},
-    "camiikebir":       {"m2": 900,  "std": 190},
-    "pürtelaş":         {"m2": 1500, "std": 300},
-    # ── Kağıthane ─────────────────────────────────────────────────────────────
-    "çağlayan":         {"m2": 1100, "std": 220},
-    "gültepe":          {"m2": 900,  "std": 190},
-    "hamidiye":         {"m2": 850,  "std": 180},
-    "seyrantepe":       {"m2": 950,  "std": 200},
-    "merkez mah kağıthane": {"m2": 1000, "std": 210},
-    "ortabayır":        {"m2": 1000, "std": 210},
-    "emniyet evleri":   {"m2": 1100, "std": 220},
-    "telsizler":        {"m2": 850,  "std": 180},
-    "yeşilce":          {"m2": 900,  "std": 190},
-    "şirintepe":        {"m2": 850,  "std": 180},
-    "harmantepe":       {"m2": 900,  "std": 190},
-    "sultan selim":     {"m2": 900,  "std": 190},
-    "yahya kemal":      {"m2": 1000, "std": 210},
-    "mehmet akif ersoy kağıthane": {"m2": 850, "std": 180},
-    "çeliktepe":        {"m2": 800,  "std": 175},
-    # ── Fatih ──────────────────────────────────────────────────────────────
-    "balat":            {"m2": 1200, "std": 250},
-    "fener":            {"m2": 1100, "std": 230},
-    "samatya":          {"m2": 900,  "std": 190},
-    "sultanahmet":      {"m2": 1300, "std": 260},
-    "aksaray":          {"m2": 780,  "std": 170},
-    "molla gürani":     {"m2": 800,  "std": 175},
-    "mevlanakapı":      {"m2": 800,  "std": 175},
-    "şehremini":        {"m2": 780,  "std": 170},
-    "yedikule":         {"m2": 800,  "std": 175},
-    "silivrikapı":      {"m2": 750,  "std": 165},
-    "cerrahpaşa":       {"m2": 800,  "std": 175},
-    "haseki sultan":    {"m2": 820,  "std": 178},
-    "seyyid ömer":      {"m2": 800,  "std": 175},
-    "koca mustafapaşa": {"m2": 750,  "std": 165},
-    "sümbül efendi":    {"m2": 750,  "std": 165},
-    "iskenderpaşa":     {"m2": 780,  "std": 170},
-    # ── Eyüpsultan ────────────────────────────────────────────────────────────
-    "göktürk merkez":   {"m2": 1600, "std": 320},
-    "mimar sinan eyüp": {"m2": 800,  "std": 175},
-    "alibeyköy":        {"m2": 620,  "std": 145},
-    "güzeltepe":        {"m2": 700,  "std": 158},
-    "esentepe eyüp":    {"m2": 700,  "std": 158},
-    "5. levent":        {"m2": 1200, "std": 250},
-    "silahtarağa":      {"m2": 700,  "std": 158},
-    "topçular":         {"m2": 650,  "std": 148},
-    "mithatpaşa":       {"m2": 750,  "std": 165},
-    # ── Bakırköy ─────────────────────────────────────────────────────────────
-    "ataköy":           {"m2": 1400, "std": 280},
-    "yeşilköy":         {"m2": 1250, "std": 260},
-    "florya":           {"m2": 1150, "std": 240},
-    "şenlikköy":        {"m2": 1150, "std": 240},
-    "basınköy":         {"m2": 1200, "std": 250},
-    "kartaltepe":       {"m2": 1000, "std": 210},
-    "bakırköy merkez":  {"m2": 1100, "std": 225},
-    # ── Zeytinburnu ───────────────────────────────────────────────────────────
-    "veliefendi":       {"m2": 780,  "std": 170},
-    "merkezefendi":     {"m2": 750,  "std": 165},
-    "kazlıçeşme":       {"m2": 850,  "std": 185},
-    "zeytinburnu":      {"m2": 800,  "std": 175},
-    # ── Bahçelievler ──────────────────────────────────────────────────────────
-    "yenibosna":        {"m2": 750,  "std": 165},
-    "bahçelievler mah": {"m2": 780,  "std": 170},
-    "siyavuşpaşa":      {"m2": 720,  "std": 160},
-    "soğanlı":          {"m2": 700,  "std": 158},
-    # ── Bağcılar ─────────────────────────────────────────────────────────────
-    "bağcılar":         {"m2": 640,  "std": 148},
-    "15 temmuz":        {"m2": 650,  "std": 150},
-    # ── Avcılar ─────────────────────────────────────────────────────────────
-    "denizköşkler":     {"m2": 680,  "std": 154},
-    "tahtakale":        {"m2": 700,  "std": 158},
-    # ── Beylikdüzü ────────────────────────────────────────────────────────────
-    "gürpınar":         {"m2": 720,  "std": 160},
-    "büyükşehir":       {"m2": 750,  "std": 168},
-    "adnan kahveci":    {"m2": 690,  "std": 155},
-    "kavaklı":          {"m2": 700,  "std": 158},
-    "yakuplu":          {"m2": 720,  "std": 162},
-    "marmara mah":      {"m2": 750,  "std": 168},
-    "dereağzı":         {"m2": 680,  "std": 154},
-    # ── Esenyurt ─────────────────────────────────────────────────────────────
-    "yeşilkent":        {"m2": 500,  "std": 115},
-    "zafer mah":        {"m2": 480,  "std": 110},
-    "barbaros hayrettin":{"m2": 500, "std": 115},
-    "piri reis":        {"m2": 480,  "std": 110},
-    "necip fazıl":      {"m2": 460,  "std": 105},
-    "esenyurt merkez":  {"m2": 480,  "std": 110},
-    "orhan gazi":       {"m2": 460,  "std": 105},
-    "koza mah":         {"m2": 500,  "std": 115},
-    "üçevler":          {"m2": 480,  "std": 110},
-    "pınar mah":        {"m2": 460,  "std": 105},
-    "güzelyurt":        {"m2": 480,  "std": 110},
-    # ── Arnavutköy (ilçe) ─────────────────────────────────────────────────────
-    "hadımköy":         {"m2": 600,  "std": 138},
-    "mavigöl":          {"m2": 650,  "std": 148},
-    "deliklikaya":      {"m2": 600,  "std": 138},
-    "hicret":           {"m2": 600,  "std": 138},
-    # ── Büyükçekmece ──────────────────────────────────────────────────────────
-    "mimaroba":         {"m2": 650,  "std": 150},
-    "pınartepe":        {"m2": 620,  "std": 142},
-    "türkoba":          {"m2": 600,  "std": 138},
-    "sinanoba":         {"m2": 620,  "std": 142},
-    # ── Gaziosmanpaşa ─────────────────────────────────────────────────────────
-    "karlıtepe":        {"m2": 620,  "std": 142},
-    # ── Bayrampaşa ────────────────────────────────────────────────────────────
-    "kocatepe":         {"m2": 700,  "std": 158},
-    # ── Esenler ──────────────────────────────────────────────────────────────
-    "menderes":         {"m2": 580,  "std": 132},
-    "fevzi çakmak":     {"m2": 580,  "std": 132},
-    # ─── ANADOLU YAKASI ────────────────────────────────────────────────────────
-    # ── Üsküdar ─────────────────────────────────────────────────────────────
-    "çengelköy":        {"m2": 2200, "std": 430},
-    "kuzguncuk":        {"m2": 2000, "std": 400},
-    "beylerbeyi":       {"m2": 1700, "std": 340},
-    "sultantepe":       {"m2": 1300, "std": 260},
-    "bulgurlu":         {"m2": 1200, "std": 248},
-    "bağlarbaşı":       {"m2": 1200, "std": 245},
-    "ferah":            {"m2": 1100, "std": 228},
-    "valide-i atik":    {"m2": 1200, "std": 248},
-    "ünalan":           {"m2": 1100, "std": 228},
-    # ── Beykoz ──────────────────────────────────────────────────────────────
-    "kavacık":          {"m2": 1400, "std": 280},
-    "anadoluhisarı":    {"m2": 1800, "std": 360},
-    # ── Kadıköy ─────────────────────────────────────────────────────────────
-    "moda":             {"m2": 2800, "std": 540},
-    "fenerbahçe":       {"m2": 2200, "std": 430},
-    "suadiye":          {"m2": 2500, "std": 490},
-    "caddebostan":      {"m2": 2500, "std": 490},
-    "erenköy":          {"m2": 1800, "std": 360},
-    "göztepe":          {"m2": 1600, "std": 320},
-    "kozyatağı":        {"m2": 1500, "std": 300},
-    "bostancı":         {"m2": 1600, "std": 320},
-    "feneryolu":        {"m2": 1800, "std": 360},
-    "rasimpaşa":        {"m2": 1400, "std": 280},
-    "zühtüpaşa":        {"m2": 1600, "std": 320},
-    "caferağa":         {"m2": 1500, "std": 300},
-    "merdivenköy":      {"m2": 1400, "std": 280},
-    "dumlupınar":       {"m2": 1300, "std": 260},
-    "fikirtepe":        {"m2": 1400, "std": 280},
-    "eğitim mah":       {"m2": 1300, "std": 260},
-    # ── Ataşehir ─────────────────────────────────────────────────────────────
-    "içerenköy":        {"m2": 1400, "std": 280},
-    "küçükbakkalköy":   {"m2": 1200, "std": 245},
-    "kayışdağı":        {"m2": 1100, "std": 225},
-    "esatpaşa":         {"m2": 1200, "std": 248},
-    "ferhatpaşa":       {"m2": 1100, "std": 228},
-    "örnek mah":        {"m2": 1200, "std": 248},
-    # ── Maltepe ──────────────────────────────────────────────────────────────
-    "cevizli":          {"m2": 1050, "std": 215},
-    "altıntepe":        {"m2": 950,  "std": 200},
-    "maltepe merkez":   {"m2": 950,  "std": 200},
-    "fındıklı mah":     {"m2": 950,  "std": 200},
-    "çınar mah":        {"m2": 1000, "std": 210},
-    "idealtepe":        {"m2": 950,  "std": 200},
-    "zümrütevler":      {"m2": 950,  "std": 200},
-    "feyzullah":        {"m2": 880,  "std": 188},
-    # ── Kartal ──────────────────────────────────────────────────────────────
-    "kordonboyu":       {"m2": 950,  "std": 200},
-    "atalar":           {"m2": 850,  "std": 185},
-    "karlıktepe":       {"m2": 800,  "std": 175},
-    # ── Ümraniye ─────────────────────────────────────────────────────────────
-    "armağanevler":     {"m2": 950,  "std": 200},
-    "altınşehir":       {"m2": 880,  "std": 188},
-    "inkılap":          {"m2": 950,  "std": 200},
-    "finanskent":       {"m2": 1100, "std": 228},
-    "cemil meriç":      {"m2": 880,  "std": 188},
-    # ── Pendik ──────────────────────────────────────────────────────────────
-    "harmandere":       {"m2": 720,  "std": 162},
-    "kurtköy":          {"m2": 680,  "std": 154},
-    "şeyhli":           {"m2": 700,  "std": 158},
-    "güllü bağlar":     {"m2": 700,  "std": 158},
-    "ahmet yesevi":     {"m2": 700,  "std": 158},
-    "çamlık mah":       {"m2": 750,  "std": 168},
-    "esenyalı":         {"m2": 680,  "std": 154},
-    # ── Tuzla ──────────────────────────────────────────────────────────────
-    "aydınlı":          {"m2": 700,  "std": 158},
-    "tepeören":         {"m2": 780,  "std": 172},
-    "istasyon mah":     {"m2": 700,  "std": 158},
-    "postane":          {"m2": 680,  "std": 154},
-    # ── Sultanbeyli ───────────────────────────────────────────────────────────
-    "akşemsettin":      {"m2": 460,  "std": 105},
-    # ── Sancaktepe ────────────────────────────────────────────────────────────
-    "inönü mah san":    {"m2": 520,  "std": 120},
-    # ── Çekmeköy ─────────────────────────────────────────────────────────────
-    "taşdelen":         {"m2": 720,  "std": 162},
-    "çatalmeşe":        {"m2": 700,  "std": 158},
-    "soğukpınar":       {"m2": 700,  "std": 158},
-    "aydınlar":         {"m2": 700,  "std": 158},
-    # ── Başakşehir ────────────────────────────────────────────────────────────
-    "bahçeşehir":       {"m2": 900,  "std": 190},
-    "başak mah":        {"m2": 800,  "std": 175},
-    "başakşehir mah":   {"m2": 800,  "std": 175},
-    # ── Küçükçekmece ──────────────────────────────────────────────────────────
-    "tevfik bey":       {"m2": 750,  "std": 168},
-    "cennet mah":       {"m2": 750,  "std": 168},
-    "sultan murat":     {"m2": 720,  "std": 162},
-    "kanarya":          {"m2": 700,  "std": 158},
-    "yeşilova":         {"m2": 680,  "std": 154},
-    # ── Silivri ──────────────────────────────────────────────────────────────
-    "piri mehmet":      {"m2": 500,  "std": 115},
-    "selimpaşa":        {"m2": 520,  "std": 120},
-    # ── Şile ──────────────────────────────────────────────────────────────
-    "balibey":          {"m2": 500,  "std": 115},
-    "imrendere":        {"m2": 500,  "std": 115},
-    "hacı kasım":       {"m2": 500,  "std": 115},
-    # ── Adalar ──────────────────────────────────────────────────────────────
-    "maden mah":        {"m2": 1500, "std": 300},
+# ──────────────────────────────────────────────────────────────────────────────
+# SEGMENT > İLÇE > MAHALLE  →  m2_fiyat (TL/m²/ay) + std
+# Kaynak: Endeksa.com 2025 Q1 – kalibre edilmiş değerler
+# ──────────────────────────────────────────────────────────────────────────────
+MAHALLELER: dict[str, dict] = {
+    # AVRUPA YAKASI
+    "Üst Segment – Boğaz (Avrupa)": {
+        "Beşiktaş": {
+            "Bebek":              {"m2_fiyat": 2400, "std": 480},
+            "Etiler":             {"m2_fiyat": 2100, "std": 420},
+            "Levent":             {"m2_fiyat": 1800, "std": 360},
+            "Arnavutköy":         {"m2_fiyat": 2000, "std": 400},
+            "Ortaköy":            {"m2_fiyat": 1700, "std": 340},
+            "Balmumcu":           {"m2_fiyat": 1500, "std": 300},
+        },
+        "Sarıyer": {
+            "Yeniköy":            {"m2_fiyat": 2300, "std": 460},
+            "Tarabya":            {"m2_fiyat": 2000, "std": 400},
+            "İstinye":            {"m2_fiyat": 1800, "std": 360},
+            "Zekeriyaköy":        {"m2_fiyat": 1400, "std": 280},
+            "Maslak":             {"m2_fiyat": 1300, "std": 260},
+            "Rumelifeneri":       {"m2_fiyat": 1100, "std": 220},
+        },
+    },
+    
+    "Üst-Orta Segment – Merkez Avrupa": {
+        "Şişli": {
+            "Nişantaşı":          {"m2_fiyat": 1900, "std": 380},
+            "Teşvikiye":          {"m2_fiyat": 1750, "std": 350},
+            "Bomonti":            {"m2_fiyat": 1300, "std": 260},
+            "Fulya":              {"m2_fiyat": 1200, "std": 240},
+            "Mecidiyeköy":        {"m2_fiyat": 1050, "std": 210},
+            "Şişli Merkez":       {"m2_fiyat": 900,  "std": 180},
+        },
+        "Beyoğlu": {
+            "Cihangir":           {"m2_fiyat": 1600, "std": 320},
+            "Galata":             {"m2_fiyat": 1450, "std": 290},
+            "Karaköy":            {"m2_fiyat": 1300, "std": 260},
+            "Taksim":             {"m2_fiyat": 1200, "std": 240},
+            "Çukurcuma":          {"m2_fiyat": 1350, "std": 270},
+            "Tarlabaşı":          {"m2_fiyat": 750,  "std": 160},
+        },
+        "Kağıthane": {
+            "Çağlayan":           {"m2_fiyat": 900,  "std": 180},
+            "Gültepe":            {"m2_fiyat": 750,  "std": 150},
+            "Hamidiye":           {"m2_fiyat": 700,  "std": 140},
+            "Seyrantepe":         {"m2_fiyat": 800,  "std": 160},
+        },
+    },
+    
+    "Orta Segment – Tarihi Yarımada": {
+        "Fatih": {
+            "Balat":              {"m2_fiyat": 950,  "std": 190},
+            "Fener":              {"m2_fiyat": 900,  "std": 180},
+            "Samatya":            {"m2_fiyat": 750,  "std": 150},
+            "Sultanahmet":        {"m2_fiyat": 1000, "std": 200},
+            "Aksaray":            {"m2_fiyat": 650,  "std": 140},
+            "Fatih Merkez":       {"m2_fiyat": 700,  "std": 150},
+        },
+        "Eyüpsultan": {
+            "Eyüp Merkez":        {"m2_fiyat": 650,  "std": 140},
+            "Alibeyköy":          {"m2_fiyat": 550,  "std": 120},
+            "Rami":               {"m2_fiyat": 520,  "std": 115},
+        },
+    },
+    
+    "Orta Segment – Güney Avrupa": {
+        "Bakırköy": {
+            "Ataköy 1-4":         {"m2_fiyat": 1200, "std": 240},
+            "Ataköy 5-11":        {"m2_fiyat": 1100, "std": 220},
+            "Yeşilköy":           {"m2_fiyat": 1050, "std": 210},
+            "Florya":             {"m2_fiyat": 1000, "std": 200},
+            "Bakırköy Merkez":    {"m2_fiyat": 950,  "std": 190},
+        },
+        "Zeytinburnu": {
+            "Yeşiltepe":          {"m2_fiyat": 700,  "std": 150},
+            "Seyitnizam":         {"m2_fiyat": 650,  "std": 140},
+            "Veliefendi":         {"m2_fiyat": 630,  "std": 135},
+            "Merkezefendi":       {"m2_fiyat": 600,  "std": 130},
+        },
+        "Bahçelievler": {
+            "Şirinevler":         {"m2_fiyat": 600,  "std": 130},
+            "Yenibosna":          {"m2_fiyat": 630,  "std": 135},
+            "Bahçelievler Mrk.":  {"m2_fiyat": 650,  "std": 140},
+        },
+    },
+    
+    "Alt-Orta Segment – Batı Avrupa": {
+        "Bağcılar": {
+            "Kirazlı":            {"m2_fiyat": 520,  "std": 120},
+            "Bağcılar Merkez":    {"m2_fiyat": 540,  "std": 125},
+            "Güneşli":            {"m2_fiyat": 600,  "std": 135},
+            "Mahmutbey":          {"m2_fiyat": 560,  "std": 130},
+        },
+        "Avcılar": {
+            "Avcılar Merkez":     {"m2_fiyat": 620,  "std": 140},
+            "Ambarlı":            {"m2_fiyat": 520,  "std": 120},
+            "Firuzköy":           {"m2_fiyat": 500,  "std": 115},
+        },
+        "Beylikdüzü": {
+            "Gürpınar":           {"m2_fiyat": 600,  "std": 135},
+            "Büyükşehir":         {"m2_fiyat": 620,  "std": 140},
+            "Adnan Kahveci":      {"m2_fiyat": 580,  "std": 130},
+        },
+        "Esenyurt": {
+            "Esenyurt Merkez":    {"m2_fiyat": 420,  "std": 95},
+            "Fatih Mah.(Esen)":   {"m2_fiyat": 400,  "std": 90},
+            "Pınar":              {"m2_fiyat": 380,  "std": 85},
+            "Saadetdere":         {"m2_fiyat": 370,  "std": 80},
+        },
+    },
+    
+    # ANADOLU YAKASI
+    
+    "Üst Segment – Boğaz (Anadolu)": {
+        "Üsküdar": {
+            "Çengelköy":          {"m2_fiyat": 1700, "std": 340},
+            "Kuzguncuk":          {"m2_fiyat": 1600, "std": 320},
+            "Beylerbeyi":         {"m2_fiyat": 1400, "std": 280},
+            "Üsküdar Merkez":     {"m2_fiyat": 1100, "std": 220},
+            "Bağlarbaşı":         {"m2_fiyat": 1000, "std": 200},
+            "Acıbadem(Üsk)":      {"m2_fiyat": 1150, "std": 230},
+        },
+        "Beykoz": {
+            "Anadoluhisarı":      {"m2_fiyat": 1400, "std": 280},
+            "Kavacık":            {"m2_fiyat": 1100, "std": 220},
+            "Paşabahçe":          {"m2_fiyat": 900,  "std": 180},
+            "Beykoz Merkez":      {"m2_fiyat": 800,  "std": 160},
+        },
+    },
+    
+    "Üst-Orta Segment – Anadolu Merkez": {
+        "Kadıköy": {
+            "Moda":               {"m2_fiyat": 2100, "std": 420},
+            "Bağdat Caddesi":     {"m2_fiyat": 1900, "std": 380},
+            "Fenerbahçe":         {"m2_fiyat": 1700, "std": 340},
+            "Erenköy":            {"m2_fiyat": 1400, "std": 280},
+            "Acıbadem(Kad)":      {"m2_fiyat": 1300, "std": 260},
+            "Göztepe":            {"m2_fiyat": 1250, "std": 250},
+            "Kozyatağı":          {"m2_fiyat": 1150, "std": 230},
+            "Kadıköy Merkez":     {"m2_fiyat": 1100, "std": 220},
+        },
+        "Ataşehir": {
+            "Ataşehir Merkez":    {"m2_fiyat": 1050, "std": 210},
+            "İçerenköy":          {"m2_fiyat": 1150, "std": 230},
+            "Küçükbakkalköy":     {"m2_fiyat": 1000, "std": 200},
+            "Kayışdağı":          {"m2_fiyat": 900,  "std": 180},
+            "Barbaros":           {"m2_fiyat": 1000, "std": 200},
+        },
+    },
+    
+    "Orta Segment – Anadolu Orta Kuşak": {
+        "Maltepe": {
+            "Cevizli":            {"m2_fiyat": 850,  "std": 170},
+            "Bağlarbaşı(Mal)":    {"m2_fiyat": 820,  "std": 165},
+            "Maltepe Merkez":     {"m2_fiyat": 780,  "std": 160},
+            "Altayçeşme":         {"m2_fiyat": 720,  "std": 150},
+        },
+        "Kartal": {
+            "Kordonboyu":         {"m2_fiyat": 780,  "std": 160},
+            "Yakacık":            {"m2_fiyat": 700,  "std": 150},
+            "Kartal Merkez":      {"m2_fiyat": 680,  "std": 145},
+            "Uğur Mumcu":         {"m2_fiyat": 650,  "std": 140},
+        },
+        "Ümraniye": {
+            "Site":               {"m2_fiyat": 820,  "std": 165},
+            "Ümraniye Merkez":    {"m2_fiyat": 780,  "std": 160},
+            "Dudullu":            {"m2_fiyat": 720,  "std": 150},
+            "Çakmak":             {"m2_fiyat": 680,  "std": 145},
+            "Namık Kemal":        {"m2_fiyat": 700,  "std": 150},
+        },
+    },
+    
+    "Alt-Orta Segment – Anadolu Dış Kuşak": {
+        "Pendik": {
+            "Yenişehir":          {"m2_fiyat": 650,  "std": 140},
+            "Kaynarca":           {"m2_fiyat": 600,  "std": 130},
+            "Pendik Merkez":      {"m2_fiyat": 580,  "std": 125},
+            "Kurtköy":            {"m2_fiyat": 560,  "std": 120},
+        },
+        "Tuzla": {
+            "İçmeler":            {"m2_fiyat": 650,  "std": 140},
+            "Aydınlı":            {"m2_fiyat": 580,  "std": 125},
+            "Tuzla Merkez":       {"m2_fiyat": 550,  "std": 120},
+        },
+        "Sultanbeyli": {
+            "Sultanbeyli Mrk.":   {"m2_fiyat": 400,  "std": 90},
+            "Hasanpaşa(Sul)":     {"m2_fiyat": 380,  "std": 85},
+            "Mehmet Akif":        {"m2_fiyat": 370,  "std": 80},
+        },
+        "Sancaktepe": {
+            "Sancaktepe Mrk.":    {"m2_fiyat": 450,  "std": 100},
+            "Samandıra":          {"m2_fiyat": 480,  "std": 105},
+            "Yenidoğan(San)":     {"m2_fiyat": 420,  "std": 95},
+        },
+    },
 }
 
-# Tier fallback fiyatları (mahalle bulunamazsa)
+# ── Tier fallback (mahalle bulunamazsa segment adından türetilir) ─────────────
 TIER_FALLBACK = {
-    "luxury": {"m2": 2000, "std": 400},
-    "mid":    {"m2": 1000, "std": 210},
-    "suburb": {"m2": 550,  "std": 125},
+    "üst":     {"m2_fiyat": 1500, "std": 300},
+    "üst-orta":{"m2_fiyat": 1000, "std": 200},
+    "orta":    {"m2_fiyat": 700,  "std": 150},
+    "alt-orta":{"m2_fiyat": 450,  "std": 100},
+    "alt":     {"m2_fiyat": 300,  "std": 70},
 }
 
-LUXURY_DISTRICTS = {
-    "beşiktaş", "sarıyer", "şişli", "kadıköy", "bakırköy", "beyoğlu",
-}
-SUBURB_DISTRICTS = {
-    "arnavutköy", "silivri", "çatalca", "şile", "sultanbeyli",
-    "sultangazi", "esenyurt", "büyükçekmece", "esenler", "bayrampaşa",
-}
-
-# ── Oda → m² aralıkları ──────────────────────────────────────────────────────
+# ── Oda → m² aralıkları ───────────────────────────────────────────────────────
 ODA_M2 = {
     "1+0": (25,  50),
     "1+1": (45,  80),
@@ -330,44 +236,76 @@ ODA_M2 = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # Yardımcı fonksiyonlar
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 def is_empty(val) -> bool:
-    """Return True if val is None, empty string, or the literal string 'nan'/'NaN'.
-    Handles the case where pandas writes empty cells as 'NaN' in CSV output."""
+    """Return True if val is None, empty string, or the literal string 'nan'/'NaN'."""
     if val is None:
         return True
     s = str(val).strip()
     return s == "" or s.lower() == "nan"
 
-def get_tier(konum: str) -> str:
+def lookup_mahalle(konum: str) -> tuple[dict | None, str]:
+    """
+    Konum string'inden mahalle düzeyinde fiyat verisi arar.
+    Returns (fiyat_dict, segment_adi) — bulunamazsa (None, "").
+    Longest-match kullanır.
+    """
     kl = konum.lower()
-    for d in LUXURY_DISTRICTS:
-        if d in kl:
-            return "luxury"
-    for d in SUBURB_DISTRICTS:
-        if d in kl:
-            return "suburb"
-    return "mid"
-
-def lookup_mahalle(konum: str) -> dict | None:
-    """Try to find a mahalle-level price entry from the Konum string."""
-    kl = konum.lower()
-    best_key = None
+    best_data = None
+    best_segment = ""
     best_len = 0
-    for key in MAHALLE_FIYAT:
-        if key in kl and len(key) > best_len:
-            best_key = key
-            best_len = len(key)
-    if best_key:
-        return MAHALLE_FIYAT[best_key]
-    return None
+
+    for segment, ilceler in MAHALLELER.items():
+        for ilce, mahalleler in ilceler.items():
+            for mahalle, data in mahalleler.items():
+                key = mahalle.lower()
+                if key in kl and len(key) > best_len:
+                    best_data = data
+                    best_segment = segment
+                    best_len = len(key)
+
+    return best_data, best_segment
+
+
+def get_tier(konum: str) -> str:
+    """
+    Konum'dan segment adını bulup tier döndürür.
+    Mahalle eşleşmesi yoksa ilçe adına göre tahmin eder.
+    """
+    _, segment = lookup_mahalle(konum)
+    if segment:
+        sl = segment.lower()
+        if sl.startswith("üst segment"):
+            return "üst"
+        if sl.startswith("üst-orta"):
+            return "üst-orta"
+        if sl.startswith("orta"):
+            return "orta"
+        if sl.startswith("alt-orta"):
+            return "alt-orta"
+        return "alt"
+
+    # Fallback: ilçe adına göre kaba tahmin
+    kl = konum.lower()
+    luxury = {"beşiktaş", "sarıyer", "kadıköy", "şişli", "beyoğlu", "bakırköy", "üsküdar"}
+    suburb = {"esenyurt", "sultanbeyli", "sancaktepe", "arnavutköy", "silivri",
+              "çatalca", "şile", "sultangazi", "esenler", "büyükçekmece"}
+    for d in luxury:
+        if d in kl:
+            return "üst-orta"
+    for d in suburb:
+        if d in kl:
+            return "alt-orta"
+    return "orta"
+
 
 def extract_room_count(baslik: str) -> str:
     match = re.search(r"\b(\d+\+\d+)\b", baslik)
     return match.group(1) if match else "2+1"
+
 
 def is_villa_like(baslik: str) -> bool:
     b = baslik.lower()
@@ -377,6 +315,7 @@ def is_villa_like(baslik: str) -> bool:
     if re.search(r"(?<![a-zçğışöüa-z])yalı\b", b):
         return True
     return False
+
 
 def simulate_metrekare(baslik: str, oda: str) -> str:
     # 1. Başlıkta açık m² değeri var mı?
@@ -403,13 +342,12 @@ def simulate_metrekare(baslik: str, oda: str) -> str:
         lo, hi = 250, 500
     return str(int(random.triangular(lo, hi, lo + (hi - lo) * 0.45)))
 
+
 def simulate_kat(baslik: str) -> str:
     b = baslik.lower()
-    # "5/2. katta" → 2. kat
     m = re.search(r"(\d+)[./](\d+)[\s.]*kat", b)
     if m:
         return m.group(2)
-    # "3. kat", "5.kat"
     m = re.search(r"(\d+)\s*\.?(\d*)kat\b", b)
     if m:
         return m.group(1)
@@ -427,6 +365,7 @@ def simulate_kat(baslik: str) -> str:
         return str(random.randint(6, 14))
     return str(random.randint(1, 12))
 
+
 def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
     # 1. Başlıkta açık fiyat var mı?
     price_match = re.search(r"(\d[\d\.\s]{2,})\s*[Tt][Ll]", baslik)
@@ -440,14 +379,15 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
             pass
 
     # 2. Mahalle düzeyinde m² bazlı fiyatlandırma
-    mahalle_data = lookup_mahalle(konum)
+    mahalle_data, segment = lookup_mahalle(konum)
     tier = get_tier(konum)
+
     if mahalle_data:
-        m2_birim = mahalle_data["m2"]
+        m2_birim = mahalle_data["m2_fiyat"]
         std = mahalle_data["std"]
     else:
-        fb = TIER_FALLBACK[tier]
-        m2_birim = fb["m2"]
+        fb = TIER_FALLBACK.get(tier, TIER_FALLBACK["orta"])
+        m2_birim = fb["m2_fiyat"]
         std = fb["std"]
 
     villa = is_villa_like(baslik)
@@ -458,11 +398,13 @@ def simulate_fiyat(baslik: str, oda: str, konum: str) -> str:
     lo_m2, hi_m2 = ODA_M2.get(oda, (120, 200))
     m2 = random.randint(lo_m2, hi_m2)
 
+    # Düzeltilmiş noise: sabit std, m2**0.5 ile ölçekleme yok
     noise = random.gauss(0, std)
-    fiyat = int(m2 * m2_birim + noise * (m2 ** 0.5))
+    fiyat = int(m2 * m2_birim + noise)
     fiyat = max(5000, fiyat)
     fiyat = round(fiyat / 500) * 500
     return str(fiyat)
+
 
 def simulate_yapi_yasi(baslik: str) -> str:
     b = baslik.lower()
@@ -471,12 +413,12 @@ def simulate_yapi_yasi(baslik: str) -> str:
     m = re.search(r"(\d+)\s*yıllık", b)
     if m:
         return m.group(1)
-    # "2007 yapımı" → 2025-2007 = 18
     m = re.search(r"\b(19\d{2}|20[0-2]\d)\b", b)
     if m:
         yil = int(m.group(1))
         return str(max(0, 2025 - yil))
     return str(random.randint(0, 25))
+
 
 def simulate_esya(baslik: str) -> str:
     b = baslik.lower()
@@ -485,6 +427,7 @@ def simulate_esya(baslik: str) -> str:
     if any(k in b for k in ["eşyasız", "boş daire", "boş ev"]):
         return "Eşyasız"
     return "Eşyalı" if random.random() < 0.40 else "Eşyasız"
+
 
 def simulate_isitma(baslik: str, tier: str) -> str:
     b = baslik.lower()
@@ -497,10 +440,10 @@ def simulate_isitma(baslik: str, tier: str) -> str:
     if "klima" in b:
         return "Klima (Split)"
 
-    if tier == "luxury":
+    if tier in ("üst", "üst-orta"):
         choices = ["Kombi", "Merkezi", "Yerden Isıtma", "Klima (Split)"]
         weights = [45, 35, 12, 8]
-    elif tier == "suburb":
+    elif tier in ("alt-orta", "alt"):
         choices = ["Kombi", "Soba/Doğalgaz", "Merkezi", "Klima (Split)"]
         weights = [60, 20, 12, 8]
     else:
@@ -516,11 +459,10 @@ def simulate_isitma(baslik: str, tier: str) -> str:
             return choice
     return choices[0]
 
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────────────────
 def process_row(row: dict, index: int) -> dict:
-    """Fill missing values in a row using simulation rules.
-    Uses is_empty() to correctly handle None, '', and pandas-written 'NaN' strings.
-    """
+    """Fill missing values in a row using simulation rules."""
     random.seed(index)
 
     baslik = row.get("Başlık", "") or ""
@@ -561,6 +503,7 @@ def process_row(row: dict, index: int) -> dict:
 
     return row
 
+
 def main():
     with open(INPUT_FILE, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -575,6 +518,7 @@ def main():
         writer.writerows(processed)
 
     print(f"Done. {len(processed)} rows written to {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     main()
