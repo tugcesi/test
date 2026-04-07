@@ -755,9 +755,8 @@ def process_row(row: dict, index: int) -> dict:
     if is_empty(row.get("Kat")):
         row["Kat"] = simulate_kat(baslik)
 
-    # Fiyat
-    if is_empty(row.get("Fiyat")):
-        row["Fiyat"] = simulate_fiyat(baslik, oda, konum)
+    # Fiyat — her satır için yeniden simüle et (kaynak verideki fiyatlar güvenilmez)
+    row["Fiyat"] = simulate_fiyat(baslik, oda, konum)
 
     # Yapı Yaşı
     if is_empty(row.get("Yapı Yaşı")):
