@@ -10,6 +10,13 @@ lüks/orta/ekonomik mahalle katsayılarıyla türetilmiştir).
   Orta mahalle:     ilce_ort × 0.95–1.05
   Ekonomik mahalle: ilce_ort × 0.70–0.75
 std = m2_fiyat × 0.18
+
+ILCE_ISTATISTIK tablosu: Endeksa.com Mart 2026 ilçe bazlı satılık veriler.
+  m2_kira        – ortalama kira TL/m²
+  ort_deger      – satılık ortalama m² fiyatı (TL)
+  amortisman_yil – amortisman süresi (yıl)
+  getiri         – yıllık kira getirisi (%)
+  yillik_degisim – yıllık fiyat değişimi (%)
 """
 
 import csv
@@ -243,6 +250,14 @@ MAHALLELER: dict[str, dict] = {
             "Fener(Sil)":         {"m2_fiyat": 210, "std": 38},
             "Ortaköy(Sil)":       {"m2_fiyat": 180, "std": 32},
         },
+        # Çatalca ilçe ort: 294 TL/m²
+        "Çatalca": {
+            "Çatalca Merkez":     {"m2_fiyat": 415, "std": 75},
+            "Ferhatpaşa(Çat)":    {"m2_fiyat": 345, "std": 62},
+            "Kaleiçi":            {"m2_fiyat": 295, "std": 53},
+            "Karacaköy":          {"m2_fiyat": 245, "std": 44},
+            "Elbasan":            {"m2_fiyat": 215, "std": 39},
+        },
     },
 
     # ── ANADOLU YAKASI ─────────────────────────────────────────────────────────
@@ -265,6 +280,14 @@ MAHALLELER: dict[str, dict] = {
             "Beykoz Merkez":      {"m2_fiyat": 360, "std": 65},
             "Paşabahçe":          {"m2_fiyat": 310, "std": 56},
             "Çubuklu":            {"m2_fiyat": 260, "std": 47},
+        },
+        # Adalar ilçe ort: 547 TL/m²
+        "Adalar": {
+            "Büyükada":           {"m2_fiyat": 770, "std": 139},
+            "Heybeliada":         {"m2_fiyat": 640, "std": 115},
+            "Burgazada":          {"m2_fiyat": 550, "std": 99},
+            "Kınalıada":          {"m2_fiyat": 470, "std": 85},
+            "Adalar Merkez":      {"m2_fiyat": 400, "std": 72},
         },
     },
 
@@ -364,7 +387,66 @@ MAHALLELER: dict[str, dict] = {
             "Eyüp Sultan(San)":   {"m2_fiyat": 255, "std": 46},
             "Sarıgazi":           {"m2_fiyat": 215, "std": 39},
         },
+        # Şile ilçe ort: 375 TL/m²
+        "Şile": {
+            "Şile Merkez":        {"m2_fiyat": 530, "std": 95},
+            "Ağva":               {"m2_fiyat": 440, "std": 79},
+            "Kumbaba":            {"m2_fiyat": 375, "std": 68},
+            "Doğancılı":          {"m2_fiyat": 315, "std": 57},
+            "Üvezli":             {"m2_fiyat": 275, "std": 50},
+        },
     }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# İLÇE İSTATİSTİK TABLOSU
+# Kaynak: Endeksa.com Mart 2026
+# m2_kira        – ortalama kira TL/m²
+# ort_deger      – satılık ortalama m² fiyatı (TL)
+# amortisman_yil – amortisman süresi (yıl)
+# getiri         – yıllık kira getirisi (%)
+# yillik_degisim – yıllık fiyat değişimi (%)
+# ─────────────────────────────────────────────────────────────────────────────
+ILCE_ISTATISTIK: dict[str, dict] = {
+    "Esenyurt":       {"m2_kira": 228, "ort_deger": 21632, "amortisman_yil": 11, "getiri": 9.33, "yillik_degisim": 34.53},
+    "Sultangazi":     {"m2_kira": 237, "ort_deger": 23698, "amortisman_yil": 14, "getiri": 7.03, "yillik_degisim": 28.28},
+    "Arnavutköy":     {"m2_kira": 240, "ort_deger": 22821, "amortisman_yil": 15, "getiri": 6.82, "yillik_degisim": 33.32},
+    "Silivri":        {"m2_kira": 247, "ort_deger": 26923, "amortisman_yil": 15, "getiri": 6.59, "yillik_degisim": 33.84},
+    "Esenler":        {"m2_kira": 251, "ort_deger": 22799, "amortisman_yil": 15, "getiri": 6.57, "yillik_degisim": 38.65},
+    "Sultanbeyli":    {"m2_kira": 262, "ort_deger": 26198, "amortisman_yil": 16, "getiri": 6.18, "yillik_degisim": 30.48},
+    "Büyükçekmece":   {"m2_kira": 282, "ort_deger": 35855, "amortisman_yil": 16, "getiri": 6.39, "yillik_degisim": 34.85},
+    "Beylikdüzü":     {"m2_kira": 289, "ort_deger": 36182, "amortisman_yil": 13, "getiri": 7.98, "yillik_degisim": 35.69},
+    "Sancaktepe":     {"m2_kira": 294, "ort_deger": 29081, "amortisman_yil": 15, "getiri": 6.74, "yillik_degisim": 31.33},
+    "Çatalca":        {"m2_kira": 294, "ort_deger": 28795, "amortisman_yil": 15, "getiri": 6.75, "yillik_degisim": 37.88},
+    "Gaziosmanpaşa":  {"m2_kira": 294, "ort_deger": 28211, "amortisman_yil": 14, "getiri": 7.39, "yillik_degisim": 28.79},
+    "Bağcılar":       {"m2_kira": 297, "ort_deger": 28803, "amortisman_yil": 14, "getiri": 7.05, "yillik_degisim": 47.72},
+    "Avcılar":        {"m2_kira": 307, "ort_deger": 31625, "amortisman_yil": 13, "getiri": 7.60, "yillik_degisim": 52.78},
+    "Tuzla":          {"m2_kira": 322, "ort_deger": 32842, "amortisman_yil": 16, "getiri": 6.25, "yillik_degisim": 23.28},
+    "Bayrampaşa":     {"m2_kira": 326, "ort_deger": 30665, "amortisman_yil": 14, "getiri": 6.99, "yillik_degisim": 38.00},
+    "Güngören":       {"m2_kira": 326, "ort_deger": 35567, "amortisman_yil": 12, "getiri": 8.07, "yillik_degisim": 53.49},
+    "Fatih":          {"m2_kira": 330, "ort_deger": 26374, "amortisman_yil": 11, "getiri": 8.80, "yillik_degisim": 41.54},
+    "Pendik":         {"m2_kira": 330, "ort_deger": 33000, "amortisman_yil": 16, "getiri": 6.32, "yillik_degisim": 31.99},
+    "Beykoz":         {"m2_kira": 356, "ort_deger": 43056, "amortisman_yil": 32, "getiri": 3.10, "yillik_degisim": 29.26},
+    "Başakşehir":     {"m2_kira": 357, "ort_deger": 41409, "amortisman_yil": 15, "getiri": 6.46, "yillik_degisim": 33.23},
+    "Çekmeköy":       {"m2_kira": 364, "ort_deger": 34951, "amortisman_yil": 14, "getiri": 6.95, "yillik_degisim": 35.49},
+    "Küçükçekmece":   {"m2_kira": 367, "ort_deger": 34160, "amortisman_yil": 12, "getiri": 8.10, "yillik_degisim": 45.31},
+    "Ümraniye":       {"m2_kira": 374, "ort_deger": 35507, "amortisman_yil": 16, "getiri": 6.41, "yillik_degisim": 30.31},
+    "Şile":           {"m2_kira": 375, "ort_deger": 42339, "amortisman_yil": 19, "getiri": 5.23, "yillik_degisim": 25.95},
+    "Kağıthane":      {"m2_kira": 391, "ort_deger": 33592, "amortisman_yil": 14, "getiri": 7.33, "yillik_degisim": 31.33},
+    "Bahçelievler":   {"m2_kira": 393, "ort_deger": 37347, "amortisman_yil": 12, "getiri": 8.59, "yillik_degisim": 75.96},
+    "Kartal":         {"m2_kira": 413, "ort_deger": 41340, "amortisman_yil": 15, "getiri": 6.67, "yillik_degisim": 45.89},
+    "Eyüpsultan":     {"m2_kira": 418, "ort_deger": 40138, "amortisman_yil": 14, "getiri": 7.31, "yillik_degisim": 38.49},
+    "Üsküdar":        {"m2_kira": 425, "ort_deger": 42946, "amortisman_yil": 20, "getiri": 4.98, "yillik_degisim": 34.13},
+    "Maltepe":        {"m2_kira": 440, "ort_deger": 39584, "amortisman_yil": 16, "getiri": 6.11, "yillik_degisim": 38.91},
+    "Şişli":          {"m2_kira": 452, "ort_deger": 40694, "amortisman_yil": 14, "getiri": 7.06, "yillik_degisim": 34.08},
+    "Ataşehir":       {"m2_kira": 460, "ort_deger": 41364, "amortisman_yil": 15, "getiri": 6.68, "yillik_degisim": 37.48},
+    "Beyoğlu":        {"m2_kira": 492, "ort_deger": 40866, "amortisman_yil": 12, "getiri": 8.26, "yillik_degisim": 40.81},
+    "Adalar":         {"m2_kira": 547, "ort_deger": None, "amortisman_yil": None, "getiri": None, "yillik_degisim": None},
+    "Zeytinburnu":    {"m2_kira": 585, "ort_deger": 59079, "amortisman_yil": 12, "getiri": 8.58, "yillik_degisim": 104.71},
+    "Sarıyer":        {"m2_kira": 590, "ort_deger": 72021, "amortisman_yil": 21, "getiri": 4.79, "yillik_degisim": 24.43},
+    "Bakırköy":       {"m2_kira": 591, "ort_deger": 69712, "amortisman_yil": 17, "getiri": 5.95, "yillik_degisim": 56.14},
+    "Beşiktaş":       {"m2_kira": 592, "ort_deger": 61587, "amortisman_yil": 24, "getiri": 4.19, "yillik_degisim": 26.44},
+    "Kadıköy":        {"m2_kira": 651, "ort_deger": 71645, "amortisman_yil": 20, "getiri": 4.92, "yillik_degisim": 41.69},
 }
 
 # ── Tier fallback (mahalle bulunamazsa ilçe ortalamalarına dayalı değerler) ───
@@ -445,7 +527,7 @@ def get_tier(konum: str) -> str:
 
     # Fallback: ilçe adına göre kaba tahmin
     kl = konum.lower()
-    luxury = {"beşiktaş", "sarıyer", "kadıköy", "şişli", "beyoğlu", "bakırköy", "üsküdar"}
+    luxury = {"beşiktaş", "sarıyer", "kadıköy", "şişli", "beyoğlu", "bakırköy", "üsküdar", "adalar"}
     suburb = {"esenyurt", "sultanbeyli", "sancaktepe", "arnavutköy", "silivri",
               "çatalca", "şile", "sultangazi", "esenler", "büyükçekmece"}
     for d in luxury:
